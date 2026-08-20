@@ -19,9 +19,17 @@ The fine-tuner image is based on **PyTorch 2.8 / CUDA 12.8** (which ships sm_120
 
 ## Base checkpoint and handoff
 
-The pipeline is **fixed to the pinned TabICLv2 regression checkpoint** `tabicl-regressor-v2-20260212.ckpt` at Hugging Face revision `4dcd344ece2c00be9e831fdd35bed57b5ad83e19`, SHA-256-verified at fine-tune time. The base checkpoint is baked into the fine-tuner image at that revision, so fine-tuning performs no runtime download.
+The pipeline is **fixed to the pinned TabICLv2 regression checkpoint** `tabicl-regressor-v2-20260212.ckpt` at Hugging Face revision `4dcd344ece2c00be9e831fdd35bed57b5ad83e19`, baked into the fine-tuner image at that revision (so fine-tuning performs no runtime download) and SHA-256-verified at fine-tune time.
 
-DIMER's Workbench **Base Model selector overrides** the default by mounting the selected checkpoint into the fine-tuner container and setting `DIMER_BASE_MODEL_PATH`. A provided checkpoint is used as-is with its SHA-256 recorded (`baseModelSource: "provided-path"`); only the pinned default is hard-verified (`baseModelSource: "pinned-download"`). `model_id` is intentionally not a `dimer-pipeline.json` hyperparameter.
+Resolution precedence and provenance are exact:
+
+| `baseModelSource` | when | verification | `baseModelRevision` |
+|---|---|---|---|
+| `dimer-provided` | `DIMER_BASE_MODEL_PATH` is set (DIMER operator override) | **must exist** — a configured-but-missing path fails the run; used as-is, SHA-256 recorded | pinned revision only if the bytes match the pinned default, else `null` |
+| `pinned-baked` | default — the checkpoint baked into the image (`TABICL_BAKED_BASE_MODEL`) | SHA-256 hard-verified against the pinned value | pinned revision |
+| `pinned-download` | no baked copy present | downloaded at the pinned revision, SHA-256 hard-verified | pinned revision |
+
+A DIMER-selected Base Model deterministically controls the checkpoint actually loaded (no silent fallback), and a custom base never falsely claims the pinned revision. `model_id` is intentionally not a `dimer-pipeline.json` hyperparameter.
 
 TabICL is distributed under the BSD 3-Clause license (the upstream repository contains a separate Apache-2.0 notice for its forecasting-derived code; this pipeline uses the tabular regressor, not the forecasting module).
 
