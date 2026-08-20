@@ -69,7 +69,7 @@ It also records:
 
 - dataset SHA-256
 - TabICL package version
-- base checkpoint identifier, **HF revision, SHA-256, and source** (`pinned-download` / `provided-path`)
+- base checkpoint identifier, **HF revision, SHA-256, and source** (`dimer-provided` / `pinned-baked` / `pinned-download`)
 - fine-tuned checkpoint SHA-256 and training-context SHA-256
 - target column and training hyperparameters
 
