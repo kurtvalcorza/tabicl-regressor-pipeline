@@ -15,13 +15,13 @@ The validator is CPU-only.
 
 The fine-tuner intentionally requires a CUDA GPU. It does **not** silently change a fine-tuning request into zero-shot inference when CUDA is unavailable. A no-GPU run fails clearly in `result.json`.
 
-The fine-tuner image is based on PyTorch 2.6 / CUDA 12.4 and installs `tabicl[finetune]==2.1.1`.
+The fine-tuner image is based on **PyTorch 2.8 / CUDA 12.8** (which ships sm_120/Blackwell kernels; the earlier PyTorch 2.6 / CUDA 12.4 image failed on RTX 50-series / B200 hardware) and installs `tabicl[finetune]==2.1.1`.
 
-## Base checkpoint
+## Base checkpoint and handoff
 
-The pipeline uses TabICLv2's regression checkpoint identifier:
+The pipeline is **fixed to the pinned TabICLv2 regression checkpoint** `tabicl-regressor-v2-20260212.ckpt` at Hugging Face revision `4dcd344ece2c00be9e831fdd35bed57b5ad83e19`, SHA-256-verified at fine-tune time. The base checkpoint is baked into the fine-tuner image at that revision, so fine-tuning performs no runtime download.
 
-`tabicl-regressor-v2-20260212.ckpt`
+DIMER's Workbench **Base Model selector overrides** the default by mounting the selected checkpoint into the fine-tuner container and setting `DIMER_BASE_MODEL_PATH`. A provided checkpoint is used as-is with its SHA-256 recorded (`baseModelSource: "provided-path"`); only the pinned default is hard-verified (`baseModelSource: "pinned-download"`). `model_id` is intentionally not a `dimer-pipeline.json` hyperparameter.
 
 TabICL is distributed under the BSD 3-Clause license (the upstream repository contains a separate Apache-2.0 notice for its forecasting-derived code; this pipeline uses the tabular regressor, not the forecasting module).
 
@@ -61,9 +61,11 @@ It also records:
 
 - dataset SHA-256
 - TabICL package version
-- base checkpoint identifier
-- fine-tuned checkpoint SHA-256
+- base checkpoint identifier, **HF revision, SHA-256, and source** (`pinned-download` / `provided-path`)
+- fine-tuned checkpoint SHA-256 and training-context SHA-256
 - target column and training hyperparameters
+
+`artifact.json` is the complete inference contract: target/feature-column ordering, the `inference` block (`nEstimators`, `randomState`, device, `allowAutoDownload`), the persisted `categoricalEncoders`, and component `digests`. A fresh-environment loader must reconstruct the exact scored model from `artifact.json` plus the referenced files alone.
 
 ## DIMER acceptance test
 
