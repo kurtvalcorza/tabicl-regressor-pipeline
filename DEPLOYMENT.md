@@ -90,7 +90,3 @@ Before enabling for production, verify the complete platform path:
 7. compare served predictions against an offline reload of the same artifact.
 
 The repository-level code cannot prove step 5–7; those are platform integration checks.
-
-## Operational note
-
-The current GitHub visibility of `tabicl-regressor-finetuner` should be **private** to match the requested repository policy. If it is still public, change **Settings → General → Danger Zone → Change repository visibility → Make private** before treating the repository set as complete.
