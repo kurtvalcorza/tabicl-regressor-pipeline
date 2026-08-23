@@ -232,8 +232,14 @@ A successful run writes the trained artifact and a `result.json` describing the 
 tabicl_regressor/
 ├── artifact.json            complete inference contract (schema, inference block, encoders, digests)
 ├── training_context.parquet the in-context support table used at inference time
-└── checkpoints/
-    └── best.ckpt            the fine-tuned TabICLv2 checkpoint
+├── checkpoints/
+│   └── best.ckpt            the fine-tuned TabICLv2 checkpoint
+├── evaluation/
+│   └── report.json          validation / optional test metrics
+├── logs/
+│   └── run-summary.json     run parameters and provenance summary
+└── progress/
+    └── epoch_*.json         best-effort per-epoch telemetry (written post-fit, not live)
 ```
 
 `result.json` records validation and optional post-training `test.csv` metrics — **MAE, MSE,
@@ -241,6 +247,12 @@ RMSE, R²** — plus the input dataset SHA-256, the `tabicl` package version, th
 identifier with its HF revision / SHA-256 / source (`dimer-provided` / `pinned-baked` /
 `pinned-download`), the fine-tuned checkpoint SHA-256, the training-context SHA-256, the target
 column, and the training hyperparameters.
+
+DIMER resolves every exportable file by the **`artifacts` block** in `result.json`, keyed by a
+`/data`-relative path (`workbench.domain._resolve_result_artifact`). `modelArtifact` (`best.ckpt`)
+is **mandatory** — export-to-repository and model-download report *"No model artifact found"*
+without it — and `trainingContext` (`training_context.parquet`) is the second file the in-context
+learner needs at serve time; `manifest`, `evaluationReport`, and `logArtifact` accompany them.
 
 TabICL remains an in-context model after downstream fine-tuning, so **inference needs both the
 fine-tuned checkpoint and the training context**. A fresh-environment loader reconstructs the
