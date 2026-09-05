@@ -1,0 +1,65 @@
+name: Apply standalone TabICLv2 Regressor Colab tutorials
+
+on:
+  push:
+    branches:
+      - feat/standalone-tabiclv2-regressor-colab
+    paths:
+      - .github/workflows/apply-colab.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/standalone-tabiclv2-regressor-colab
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materialize tutorial payload
+        run: |
+          base64 -d .github/tabicl_payload/payload.b64 | tar -xzf -
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('README.md')
+          text = p.read_text(encoding='utf-8')
+          title = '# TabICLv2 Regressor — DIMER Pipeline'
+          marker = '[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)]'
+          if marker not in text:
+              if not text.startswith(title + '\n'):
+                  raise RuntimeError('Unexpected README title; refusing broad rewrite')
+              lines = [
+                  '',
+                  '[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/kurtvalcorza/tabicl-regressor-pipeline)',
+                  '[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb)',
+                  '',
+                  '## Try the standalone Colab',
+                  '',
+                  'Run TabICLv2 Regressor directly in Google Colab without DIMER Workbench or the worker repositories. The main tutorial supports the pinned upstream checkpoint or the matching checkpoint exported from DIMER, and can export a portable DIMER-style serving bundle.',
+                  '',
+                  '- [Main tutorial](tutorials/tabiclv2_regressor_colab.ipynb)',
+                  '- [Artifact inference tutorial](tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb)',
+                  '',
+              ]
+              block = '\n'.join(lines)
+              p.write_text(text.replace(title + '\n', title + '\n' + block + '\n', 1), encoding='utf-8')
+          PY
+      - name: Validate generated tutorials
+        run: |
+          pip install pandas numpy
+          python scripts/validate_colab_tutorial.py
+          python scripts/test_colab_csv_headers.py
+          python -m py_compile scripts/validate_colab_tutorial.py scripts/test_colab_csv_headers.py
+      - name: Commit clean generated tree
+        run: |
+          rm -rf .github/tabicl_payload .github/workflows/apply-colab.yml scripts/__pycache__
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md tutorials scripts .github
+          git commit -m 'Add standalone TabICLv2 Regressor Colab tutorials'
+          git push origin HEAD:feat/standalone-tabiclv2-regressor-colab
