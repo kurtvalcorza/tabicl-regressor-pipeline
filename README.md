@@ -1,5 +1,16 @@
 # TabICLv2 Regressor — DIMER Pipeline
 
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/kurtvalcorza/tabicl-regressor-pipeline)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb)
+
+## Try the standalone Colab
+
+Run TabICLv2 Regressor directly in Google Colab without DIMER Workbench or the worker repositories. The main tutorial supports the pinned upstream checkpoint or a DIMER-provided ZIP/direct copy of that same pinned base checkpoint, and can export a portable DIMER-style serving bundle. Fine-tuned DIMER serving bundles are loaded through the artifact-inference tutorial instead.
+
+- [Main tutorial](tutorials/tabiclv2_regressor_colab.ipynb)
+- [Artifact inference tutorial](tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb)
+
+
 A DIMER pipeline that fine-tunes [TabICLv2](https://huggingface.co/jingang/TabICL), a pretrained
 tabular foundation model, on your own tabular-regression dataset. You supply a table of rows with
 one finite numeric target column. The pipeline validates the table, fine-tunes TabICLv2 on a GPU,
