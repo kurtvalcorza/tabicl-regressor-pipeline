@@ -8,10 +8,10 @@
 
 These notebooks make the model usable outside DIMER Workbench while preserving the repository's pinned checkpoint identity and serving-artifact contract.
 
-| Notebook | Purpose |
-|---|---|
-| [`tabiclv2_regressor_colab.ipynb`](tabiclv2_regressor_colab.ipynb) | End-to-end tutorial: checkpoint → data → evaluation → optional fine-tuning → inference → portable bundle |
-| [`tabiclv2_regressor_artifact_inference_colab.ipynb`](tabiclv2_regressor_artifact_inference_colab.ipynb) | Load a trusted exported/DIMER-style bundle and run inference without gradient fine-tuning |
+| Notebook | Badge | Purpose |
+|---|---|---|
+| [`tabiclv2_regressor_colab.ipynb`](tabiclv2_regressor_colab.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb) | End-to-end tutorial: checkpoint → data → evaluation → optional fine-tuning → inference → portable bundle |
+| [`tabiclv2_regressor_artifact_inference_colab.ipynb`](tabiclv2_regressor_artifact_inference_colab.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb) | Load a trusted exported/DIMER-style bundle and run inference without gradient fine-tuning |
 
 ## Main tutorial
 
@@ -21,6 +21,8 @@ These notebooks make the model usable outside DIMER Workbench while preserving t
 - finite numeric-target validation and training-target variation check
 - pretrained in-context evaluation with MAE, MSE, RMSE, R², and Pearson correlation
 - optional `FinetunedTabICLRegressor` CUDA fine-tuning
+- companion classical tree baselines (LightGBM and Random Forest) with holdout leaderboard and device latency
+- in-memory post-hoc point-prediction blending with holdout RMSE minimization and generalization assessment
 - holdout-only artifact selection; independent test is evaluation only
 - point prediction with scalar `prediction` output
 - DIMER-style bundle export: checkpoint + training context + manifest
