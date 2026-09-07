@@ -21,6 +21,8 @@ These notebooks make the model usable outside DIMER Workbench while preserving t
 - finite numeric-target validation and training-target variation check
 - pretrained in-context evaluation with MAE, MSE, RMSE, R², and Pearson correlation
 - optional `FinetunedTabICLRegressor` CUDA fine-tuning
+- companion classical tree baselines (LightGBM and Random Forest) with holdout leaderboard and device latency
+- in-memory post-hoc point-prediction blending with holdout RMSE minimization and generalization assessment
 - holdout-only artifact selection; independent test is evaluation only
 - point prediction with scalar `prediction` output
 - DIMER-style bundle export: checkpoint + training context + manifest
