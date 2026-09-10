@@ -35,6 +35,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch==2.11.0
           pip install -r tutorials/requirements-release.txt
+      - name: Prepare Colab-compatible workspace
+        run: |
+          sudo mkdir -p /content
+          sudo chown "$(id -u):$(id -g)" /content
+          rm -rf /content/tabiclv2-regressor /content/tabiclv2_regressor /content/tabiclv2-regressor-artifact /content/tabiclv2-regressor-reload
       - name: Execute E2E producer and external-artifact consumer
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
