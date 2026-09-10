@@ -117,6 +117,14 @@ for marker in ("create_regressor(", "condition_regressor(", "predict_points(", "
 for marker in ("create_regressor(", "condition_regressor(", "predict_points("):
     require(marker in inf_code, f"artifact does not exercise repository API operation {marker}")
 
+# Optional fine-tuning is gated off by default, so statically protect its callable path.
+require("finetuner = create_finetuned_regressor(" in main_code, "optional fine-tune constructor does not use repository API")
+require("Finetunedcreate_regressor" not in main_code, "mangled optional fine-tune constructor")
+require(
+    'raise RuntimeError("TabICLv2 fine-tuning requires CUDA")\n    ft_dir = Path("/content/tabiclv2-regressor-finetune")' in main_code,
+    "fine-tune workspace must be initialized after the CUDA guard, not inside its failure branch",
+)
+
 # Model / task provenance and semantics.
 for marker in (CHECKPOINT_NAME, MODEL_REVISION, CHECKPOINT_SHA256, 'CHECKPOINT_SOURCE = "Pinned upstream"', '"DIMER ZIP"', "RUN_FINE_TUNING = False", "MIN_SELECTION_HOLDOUT_ROWS = 50", ARTIFACT_FORMAT, "training_context.parquet", "checkpoints/best.ckpt", "artifact.json", "Candidate checkpoint holdout"):
     require(marker in main_code, f"main code missing {marker!r}")
