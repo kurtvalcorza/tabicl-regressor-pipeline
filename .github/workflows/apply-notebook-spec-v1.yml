@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   migrate:
-    if: github.event.head_commit.message != 'chore(notebooks): apply NOTEBOOK_SPEC v1.0 conformance'
+    if: ${{ github.event.head_commit.message != 'chore(notebooks): apply NOTEBOOK_SPEC v1.0 conformance' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
