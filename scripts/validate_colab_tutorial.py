@@ -60,7 +60,13 @@ def compile_cells(nb: dict, label: str) -> None:
 
 
 def clean_state(nb: dict, label: str) -> None:
+    require(int(nb.get("nbformat_minor", 0)) >= 5, f"{label}: nbformat_minor must support stable cell IDs")
+    seen_ids: set[str] = set()
     for i, cell in enumerate(nb["cells"]):
+        cell_id = cell.get("id")
+        require(isinstance(cell_id, str) and bool(cell_id.strip()), f"{label}: cell {i} missing stable id")
+        require(cell_id not in seen_ids, f"{label}: duplicate cell id {cell_id!r}")
+        seen_ids.add(cell_id)
         if cell.get("cell_type") == "code":
             require(cell.get("execution_count") is None, f"{label}: cell {i} has execution_count")
             require(cell.get("outputs", []) == [], f"{label}: cell {i} has persisted outputs")
@@ -98,8 +104,9 @@ pyproject = PYPROJECT.read_text(encoding="utf-8")
 require(f'requires = ["{BUILD_BACKEND_PIN}"]' in pyproject, "PEP 517 build backend must be exact-pinned to the release lock")
 require('build-backend = "setuptools.build_meta"' in pyproject, "unexpected PEP 517 build backend")
 require("setuptools>=" not in pyproject and "setuptools~=" not in pyproject, "floating setuptools build requirement is forbidden")
-require('--no-deps "git+https://github.com/kurtvalcorza/tabicl-regressor-pipeline@' in main_code, "main adapter install must disable runtime dependency re-resolution")
-require('--no-deps "git+https://github.com/kurtvalcorza/tabicl-regressor-pipeline@' in inf_code, "artifact adapter install must disable runtime dependency re-resolution")
+adapter_install = '--no-deps --no-build-isolation "git+https://github.com/kurtvalcorza/tabicl-regressor-pipeline@'
+require(adapter_install in main_code, "main adapter install must disable dependency re-resolution and build isolation")
+require(adapter_install in inf_code, "artifact adapter install must disable dependency re-resolution and build isolation")
 require('EXPECTED_TORCH_VERSION = "2.11.0"' in main_code and 'EXPECTED_TORCH_VERSION = "2.11.0"' in inf_code, "PyTorch runtime verification missing")
 
 # Both notebooks must install the same immutable repository API + lock anchor.
@@ -109,6 +116,7 @@ def api_revision(code: str, label: str) -> str:
     revision = next(iter(matches))
     require(f"/{revision}/tutorials/requirements-release.lock" in code, f"{label} lock URL is not pinned to API revision")
     return revision
+
 
 main_api_revision = api_revision(main_code, "main")
 inf_api_revision = api_revision(inf_code, "artifact")
@@ -144,6 +152,7 @@ require("Reproducibility boundary" in main_all, "main variability statement miss
 require("BYOD privacy boundary" in main_all and "BYOD privacy boundary" in inf_all, "data locality/privacy statement missing")
 require("Required inference feature columns:" in main_code, "main does not print inference schema")
 require("Required feature columns:" in inf_code and "Expected inference schema:" in inf_code, "artifact does not surface schema before upload")
+require("writable `/content` workspace" in main_all and "writable `/content` workspace" in inf_all, "generic Jupyter prerequisite must state the current workspace contract")
 
 # Artifact provenance must establish runtime compatibility before checkpoint reconstruction.
 require("validate_artifact_runtime(" in inf_code, "artifact runtime compatibility is not validated")
