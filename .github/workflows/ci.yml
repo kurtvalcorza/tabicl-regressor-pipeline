@@ -5,48 +5,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  builder-review-fixes:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Generate resolved notebook dependency lock
-        run: |
-          python -m venv /tmp/notebook-lock
-          source /tmp/notebook-lock/bin/activate
-          python -m pip install --upgrade pip
-          pip install "torch==2.11.0" --index-url https://download.pytorch.org/whl/cpu
-          pip install -r tutorials/requirements-release.txt
-          pip freeze | grep -v '^torch==' > tutorials/requirements-release.lock
-          deactivate
-      - name: Commit lock anchor
-        run: |
-          git config user.name "agent-relay-builder"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tutorials/requirements-release.lock pyproject.toml src/tabicl_regressor_pipeline
-          if ! git diff --cached --quiet; then
-            git commit -m "build(tutorials): lock transitive release environment"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
-      - name: Apply reviewer fixes against immutable API/lock anchor
-        run: |
-          export PIPELINE_API_REVISION="$(git rev-parse HEAD)"
-          python scripts/apply_reviewer_fixes.py
-          git add tutorials/tabiclv2_regressor_colab.ipynb tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb tutorials/README.md
-          if ! git diff --cached --quiet; then
-            git commit -m "fix(tutorials): address reviewer P1 findings"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
-
   tutorial-checks:
     runs-on: ubuntu-latest
     steps:
@@ -61,29 +22,42 @@ jobs:
         run: python scripts/test_colab_csv_headers.py
       - name: Issue 10 tutorial hardening regressions
         run: python scripts/test_issue10_hardening.py
-      - name: Compile tutorial checks
+      - name: Compile tutorial and public API checks
         run: python -m compileall -q scripts src
 
   release-notebook-execution:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install release-verified notebook environment
+      - name: Install release-verified runtime and notebook engine
         run: |
           python -m pip install --upgrade pip
           pip install "torch==2.11.0" --index-url https://download.pytorch.org/whl/cpu
-          pip install -r tutorials/requirements-release.txt
-      - name: Prepare Colab-compatible workspace
+          pip install -r tutorials/requirements-release.lock
+          pip install "nbclient==0.10.2" "nbformat==5.10.4" "ipykernel==6.30.1"
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
+      - name: Prepare clean notebook workspace
         run: |
           sudo mkdir -p /content
           sudo chown "$(id -u):$(id -g)" /content
           rm -rf /content/tabiclv2-regressor /content/tabiclv2_regressor /content/tabiclv2-regressor-artifact /content/tabiclv2-regressor-reload
-      - name: Execute E2E producer and external-artifact consumer
+          rm -f /content/tabiclv2-regressor-artifact.zip /content/tabiclv2_regressor_predictions.csv /content/tabiclv2_regressor_release_fresh_rows.csv /content/*.executed.ipynb
+      - name: Execute producer and external-artifact consumer through Jupyter kernels
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
           WANDB_MODE: disabled
         run: python scripts/execute_notebook_release.py
+      - name: Upload notebook execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notebook-execution-evidence-${{ github.sha }}
+          if-no-files-found: ignore
+          path: |
+            /content/*.executed.ipynb
+            /content/tabiclv2_regressor_release_fresh_rows.csv
+            /content/tabiclv2_regressor_predictions.csv
