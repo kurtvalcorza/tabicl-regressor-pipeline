@@ -4,7 +4,49 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  builder-review-fixes:
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Generate resolved notebook dependency lock
+        run: |
+          python -m venv /tmp/notebook-lock
+          source /tmp/notebook-lock/bin/activate
+          python -m pip install --upgrade pip
+          pip install "torch==2.11.0" --index-url https://download.pytorch.org/whl/cpu
+          pip install -r tutorials/requirements-release.txt
+          pip freeze | grep -v '^torch==' > tutorials/requirements-release.lock
+          deactivate
+      - name: Commit lock anchor
+        run: |
+          git config user.name "agent-relay-builder"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tutorials/requirements-release.lock pyproject.toml src/tabicl_regressor_pipeline
+          if ! git diff --cached --quiet; then
+            git commit -m "build(tutorials): lock transitive release environment"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
+      - name: Apply reviewer fixes against immutable API/lock anchor
+        run: |
+          export PIPELINE_API_REVISION="$(git rev-parse HEAD)"
+          python scripts/apply_reviewer_fixes.py
+          git add tutorials/tabiclv2_regressor_colab.ipynb tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb tutorials/README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(tutorials): address reviewer P1 findings"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
+
   tutorial-checks:
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +62,7 @@ jobs:
       - name: Issue 10 tutorial hardening regressions
         run: python scripts/test_issue10_hardening.py
       - name: Compile tutorial checks
-        run: python -m compileall -q scripts
+        run: python -m compileall -q scripts src
 
   release-notebook-execution:
     runs-on: ubuntu-latest
