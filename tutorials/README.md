@@ -8,10 +8,29 @@
 
 These notebooks make the model usable outside DIMER Workbench while preserving the repository's pinned checkpoint identity and serving-artifact contract.
 
-| Notebook | Badge | Purpose |
-|---|---|---|
-| [`tabiclv2_regressor_colab.ipynb`](tabiclv2_regressor_colab.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb) | End-to-end tutorial: checkpoint → data → evaluation → optional fine-tuning → inference → portable bundle |
-| [`tabiclv2_regressor_artifact_inference_colab.ipynb`](tabiclv2_regressor_artifact_inference_colab.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb) | Load a trusted exported/DIMER-style bundle and run inference without gradient fine-tuning |
+| Notebook | Profile | Capability | Default runtime | Release status |
+|---|---|---|---|---|
+| [`tabiclv2_regressor_colab.ipynb`](tabiclv2_regressor_colab.ipynb) | `E2E` | Tabular regression: evaluation, optional adaptation, inference, export/reload | CPU (GPU optional for fine-tuning) | release-grade path; current-head CI enforces source + notebook-engine execution |
+| [`tabiclv2_regressor_artifact_inference_colab.ipynb`](tabiclv2_regressor_artifact_inference_colab.ipynb) | `ARTIFACT-INFERENCE` | External serving-bundle validation/reconstruction and new-data inference | CPU | release-grade path; current-head CI enforces source + notebook-engine execution |
+
+## NOTEBOOK_SPEC v1.0 conformance
+
+**Notebook specification:** `1.0`.
+
+This repository remains the DIMER contract/docs umbrella and exposes an installable public reference API under `src/tabicl_regressor_pipeline/`. The tutorials install that API at immutable commit `41a4b2b3537da33b90a6d2562a351f3a3995a74e` and exercise it for their core model operations. The sibling validator/fine-tuner containers remain the DIMER Workbench production implementation; tutorial execution is reference-path evidence, not the final on-platform acceptance test.
+
+[`requirements-release.txt`](requirements-release.txt) records the requested top-level environment and [`requirements-release.lock`](requirements-release.lock) records the resolved transitive graph used by the release notebooks. The lock contains `setuptools==78.1.0`, matching the exact PEP 517 build-backend pin in `pyproject.toml`. The repository adapter is installed with `--no-deps --no-build-isolation`, so the already-locked environment supplies the build backend instead of resolving a second isolated build graph. PyTorch is an explicit runtime-provided boundary and is verified as `2.11.0` rather than replaced after kernel startup.
+
+Google Colab is the primary hosted runtime. Generic Jupyter/Python 3.13 use currently requires a writable `/content` workspace because tutorial artifact paths intentionally match the Colab/DIMER demonstration layout.
+
+Notebook JSON is committed with cleared outputs/execution counts and stable nbformat cell IDs. Static validation rejects missing IDs, floating build-backend requirements, re-enabled build isolation, and the previously overbroad generic-Jupyter runtime claim.
+
+### Durable SHOULD dispositions
+
+- `MOD6` / artifact digests: implemented for the base checkpoint and exported payload.
+- `SEC6`: implemented with 512 MiB expanded limit for base-checkpoint ZIP input and 1 GiB for serving artifacts.
+- `SEC8` / `SEC9`: newly produced artifacts record payload sizes and an allowlist; the consumer verifies them. Legacy `tabicl-dimer-regressor-v1` bundles without those optional fields remain readable but emit explicit warnings.
+- `DAT14`: hosted-runtime sensitive-data warnings are present before BYOD paths.
 
 ## Main tutorial
 
@@ -48,7 +67,7 @@ The portable artifact also embeds the labelled training context. Treat the expor
 
 ## Runtime evidence
 
-Static/CI checks validate notebook structure, pinned checkpoint identity, task semantics, CSV-header safeguards, artifact contract, badges, and AI provenance. Live Colab execution evidence should be recorded separately on the PR; do not infer runtime success from static CI alone.
+CI separates static checks from execution. Release verification executes the notebooks through real IPython/Jupyter kernels, preserving `%pip` and notebook semantics; the companion receives the producer artifact and a distinct fresh inference CSV through explicit external paths. Hosted-Colab execution may still be recorded as an additional surface check, but static checks alone are never runtime evidence.
 
 ## AI provenance
 
