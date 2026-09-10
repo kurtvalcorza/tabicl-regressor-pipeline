@@ -11,6 +11,7 @@ INFERENCE = ROOT / "tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb"
 README = ROOT / "tutorials/README.md"
 REQ = ROOT / "tutorials/requirements-release.txt"
 LOCK = ROOT / "tutorials/requirements-release.lock"
+PYPROJECT = ROOT / "pyproject.toml"
 EXECUTOR = ROOT / "scripts/execute_notebook_release.py"
 API = ROOT / "src/tabicl_regressor_pipeline/api.py"
 
@@ -19,6 +20,7 @@ CHECKPOINT_NAME = "tabicl-regressor-v2-20260212.ckpt"
 CHECKPOINT_SHA256 = "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a"
 TABICL_VERSION = "2.1.1"
 ARTIFACT_FORMAT = "tabicl-dimer-regressor-v1"
+BUILD_BACKEND_PIN = "setuptools==78.1.0"
 
 
 def require(condition: bool, message: str) -> None:
@@ -91,6 +93,13 @@ locked_names = {line.split("==", 1)[0].lower() for line in lock_lines}
 for package in ("tabicl", "numpy", "scipy", "pandas", "pyarrow", "scikit-learn", "huggingface_hub", "transformers", "wandb", "lightgbm", "einops"):
     require(package.lower() in locked_names, f"transitive lock missing {package}")
 require("torch" not in locked_names, "torch must remain the explicit runtime-provided boundary")
+require(BUILD_BACKEND_PIN in lock_lines, "release lock must contain the exact PEP 517 build backend")
+pyproject = PYPROJECT.read_text(encoding="utf-8")
+require(f'requires = ["{BUILD_BACKEND_PIN}"]' in pyproject, "PEP 517 build backend must be exact-pinned to the release lock")
+require('build-backend = "setuptools.build_meta"' in pyproject, "unexpected PEP 517 build backend")
+require("setuptools>=" not in pyproject and "setuptools~=" not in pyproject, "floating setuptools build requirement is forbidden")
+require('--no-deps "git+https://github.com/kurtvalcorza/tabicl-regressor-pipeline@' in main_code, "main adapter install must disable runtime dependency re-resolution")
+require('--no-deps "git+https://github.com/kurtvalcorza/tabicl-regressor-pipeline@' in inf_code, "artifact adapter install must disable runtime dependency re-resolution")
 require('EXPECTED_TORCH_VERSION = "2.11.0"' in main_code and 'EXPECTED_TORCH_VERSION = "2.11.0"' in inf_code, "PyTorch runtime verification missing")
 
 # Both notebooks must install the same immutable repository API + lock anchor.
