@@ -17,11 +17,11 @@ These notebooks make the model usable outside DIMER Workbench while preserving t
 
 **Notebook specification:** `1.0`.
 
-This repository is the DIMER contract/docs umbrella. For these tutorials, the repository-defined notebook-facing API is the public top-level `tabicl.TabICLRegressor` / `tabicl.FinetunedTabICLRegressor` estimator surface configured to the immutable checkpoint and `tabicl-dimer-regressor-v1` artifact contract documented here. The notebooks do not reimplement model logic or launch the sibling validator/fine-tuner containers.
+This repository remains the DIMER contract/docs umbrella and now exposes an installable public reference API under `src/tabicl_regressor_pipeline/`. The tutorials install that API at immutable commit `41a4b2b3537da33b90a6d2562a351f3a3995a74e` and exercise it for their core model operations. The sibling validator/fine-tuner containers remain the DIMER Workbench production implementation; tutorial execution is reference-path evidence, not the final on-platform acceptance test.
 
-The exact notebook-level package pins used for release verification are recorded in [`requirements-release.txt`](requirements-release.txt). PyTorch is a runtime-provided core framework and is verified as `2.11.0` rather than replaced after kernel startup.
+[`requirements-release.txt`](requirements-release.txt) records the requested top-level environment and [`requirements-release.lock`](requirements-release.lock) records the resolved transitive graph used by the release notebooks. PyTorch is an explicit runtime-provided boundary and is verified as `2.11.0` rather than replaced after kernel startup.
 
-Release status remains **candidate** until the current revision's `release-notebook-execution` check passes. Static validation is not treated as execution evidence.
+Release status remains **candidate** until the current revision's notebook-engine execution check passes. Static validation and the legacy plain-Python integration harness are not treated as notebook execution evidence.
 
 ### Durable SHOULD dispositions
 
@@ -65,7 +65,7 @@ The portable artifact also embeds the labelled training context. Treat the expor
 
 ## Runtime evidence
 
-Static/CI checks validate notebook structure, pinned checkpoint identity, task semantics, CSV-header safeguards, artifact contract, badges, and AI provenance. Live Colab execution evidence should be recorded separately on the PR; do not infer runtime success from static CI alone.
+CI separates static checks from execution. Release verification executes the notebooks through a real IPython/Jupyter kernel, preserving `%pip` and notebook semantics; the companion receives the producer artifact and a distinct fresh inference CSV through explicit external paths. Hosted-Colab execution may still be recorded as an additional surface check, but static checks alone are never runtime evidence.
 
 ## AI provenance
 
