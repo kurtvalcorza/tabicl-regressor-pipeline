@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   tutorial-checks:
@@ -10,9 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - run: pip install pandas numpy
-      - name: Standalone Colab tutorial
+      - name: NOTEBOOK_SPEC 1.0 static conformance
         run: python scripts/validate_colab_tutorial.py
       - name: Colab CSV header regressions
         run: python scripts/test_colab_csv_headers.py
@@ -20,3 +21,22 @@ jobs:
         run: python scripts/test_issue10_hardening.py
       - name: Compile tutorial checks
         run: python -m compileall -q scripts
+
+  release-notebook-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install release-verified notebook environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.11.0
+          pip install -r tutorials/requirements-release.txt
+      - name: Execute E2E producer and external-artifact consumer
+        env:
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          WANDB_MODE: disabled
+        run: python scripts/execute_notebook_release.py

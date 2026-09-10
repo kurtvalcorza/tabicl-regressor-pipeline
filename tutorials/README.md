@@ -8,10 +8,27 @@
 
 These notebooks make the model usable outside DIMER Workbench while preserving the repository's pinned checkpoint identity and serving-artifact contract.
 
-| Notebook | Badge | Purpose |
-|---|---|---|
-| [`tabiclv2_regressor_colab.ipynb`](tabiclv2_regressor_colab.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb) | End-to-end tutorial: checkpoint → data → evaluation → optional fine-tuning → inference → portable bundle |
-| [`tabiclv2_regressor_artifact_inference_colab.ipynb`](tabiclv2_regressor_artifact_inference_colab.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb) | Load a trusted exported/DIMER-style bundle and run inference without gradient fine-tuning |
+| Notebook | Profile | Capability | Default runtime | Release status |
+|---|---|---|---|---|
+| [`tabiclv2_regressor_colab.ipynb`](tabiclv2_regressor_colab.ipynb) | `E2E` | Tabular regression: evaluation, optional adaptation, inference, export/reload | CPU (GPU optional for fine-tuning) | candidate — NOTEBOOK_SPEC 1.0 source checks; clean-runtime execution required |
+| [`tabiclv2_regressor_artifact_inference_colab.ipynb`](tabiclv2_regressor_artifact_inference_colab.ipynb) | `ARTIFACT-INFERENCE` | External serving-bundle validation/reconstruction and new-data inference | CPU | candidate — NOTEBOOK_SPEC 1.0 source checks; clean-runtime execution required |
+
+## NOTEBOOK_SPEC v1.0 conformance
+
+**Notebook specification:** `1.0`.
+
+This repository is the DIMER contract/docs umbrella. For these tutorials, the repository-defined notebook-facing API is the public top-level `tabicl.TabICLRegressor` / `tabicl.FinetunedTabICLRegressor` estimator surface configured to the immutable checkpoint and `tabicl-dimer-regressor-v1` artifact contract documented here. The notebooks do not reimplement model logic or launch the sibling validator/fine-tuner containers.
+
+The exact notebook-level package pins used for release verification are recorded in [`requirements-release.txt`](requirements-release.txt). PyTorch is a runtime-provided core framework and is verified as `2.11.0` rather than replaced after kernel startup.
+
+Release status remains **candidate** until the current revision's `release-notebook-execution` check passes. Static validation is not treated as execution evidence.
+
+### Durable SHOULD dispositions
+
+- `MOD6` / artifact digests: implemented for the base checkpoint and exported payload.
+- `SEC6`: implemented with 512 MiB expanded limit for base-checkpoint ZIP input and 1 GiB for serving artifacts.
+- `SEC8` / `SEC9`: newly produced artifacts record payload sizes and an allowlist; the consumer verifies them. Legacy `tabicl-dimer-regressor-v1` bundles without those optional fields remain readable but emit explicit warnings.
+- `DAT14`: hosted-runtime sensitive-data warnings are present before BYOD paths.
 
 ## Main tutorial
 

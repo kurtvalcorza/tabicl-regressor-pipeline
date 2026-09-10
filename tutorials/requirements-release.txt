@@ -1,0 +1,10 @@
+# Release-verified notebook-level dependencies for NOTEBOOK_SPEC 1.0.
+# PyTorch is runtime-provided and verified separately as 2.11.0.
+tabicl==2.1.1
+lightgbm==4.7.0
+pyarrow==25.0.1
+pandas==2.3.3
+scikit-learn==1.9.0
+huggingface_hub==1.30.0
+transformers==5.6.2
+wandb==0.27.2
