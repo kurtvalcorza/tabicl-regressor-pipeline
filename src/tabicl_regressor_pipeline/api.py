@@ -54,6 +54,11 @@ def create_finetuned_regressor(**kwargs: Any):
     return FinetunedTabICLRegressor(**kwargs)
 
 
+def fine_tune_regressor(model: Any, X: Any, y: Any, **kwargs: Any) -> Any:
+    """Run the upstream fine-tuning operation through the repository API."""
+    return model.fit(X, y, **kwargs)
+
+
 def condition_regressor(model: Any, X: Any, y: Any) -> Any:
     """Register the serving support context required by TabICL inference."""
     model.fit(X, y)
@@ -71,11 +76,7 @@ def predict_points(model: Any, X: Any) -> np.ndarray:
 
 
 def read_single_input(*, env_var: str, label: str) -> tuple[str, bytes]:
-    """Read one user-supplied file from an explicit path or Colab upload dialog.
-
-    CI/Jupyter callers provide an external path through ``env_var``. Interactive
-    Colab users leave it unset and receive the native upload dialog.
-    """
+    """Read one user-supplied file from an explicit path or Colab upload dialog."""
     explicit = os.environ.get(env_var, "").strip()
     if explicit:
         path = Path(explicit).expanduser().resolve()
