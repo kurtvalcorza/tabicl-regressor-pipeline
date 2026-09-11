@@ -41,7 +41,11 @@ TabICLv2 is an in-context learning tabular foundation model that ingests trainin
   - Categoricals (strings): `sex` (`female`, `male`), `smoker` (`yes`, `no`), `region` (`southwest`, `southeast`, `northwest`, `northeast`).
   - Numerics: `age`, `bmi`, `children`.
 - **Split:** 60% train (802 rows) / 20% val (268 rows) / 20% test (268 rows) (random split, seed 42).
-- **Provenance & License:** Brett Lantz (2013), *Machine Learning with R*. Packaged via OpenML / Kaggle. Distributed under **CC0 1.0 Universal (Public Domain Dedication)**.
+- **Provenance & License:** Brett Lantz (2013), *Machine Learning with R*. Source bytes are pinned to `stedy/Machine-Learning-with-R-datasets@d20658ec6d336af2d4ddb5fd72b6f677dd46136e` and verified by SHA-256 before packaging. Distributed under **CC0 1.0 Universal (Public Domain Dedication)**.
+
+### Immutable tutorial asset
+
+The notebook retrieves `insurance-medical-charges.zip` from immutable repository revision `ec4d9e88846aac5dc478975c698703d38737575a` and verifies the archive SHA-256 above before extraction. That revision is retained by the durable branch `anchors/sample-data-20260911`, so deleting the feature branch after merge does not break the published tutorial asset.
 
 ---
 
