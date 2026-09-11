@@ -45,7 +45,7 @@ TabICLv2 is an in-context learning tabular foundation model that ingests trainin
 
 ### Immutable tutorial asset
 
-The notebook retrieves `insurance-medical-charges.zip` from immutable repository revision `ec4d9e88846aac5dc478975c698703d38737575a` and verifies the archive SHA-256 above before extraction. That revision is retained by the durable branch `anchors/sample-data-20260911`, so deleting the feature branch after merge does not break the published tutorial asset.
+The final notebook loader retrieves `insurance-medical-charges.zip` from immutable repository revision `ec4d9e88846aac5dc478975c698703d38737575a` and verifies the archive SHA-256 above before extraction. That revision is retained by the durable branch `anchors/sample-data-20260911`, so deleting the feature branch after merge does not break the published tutorial asset.
 
 ---
 
