@@ -72,3 +72,14 @@ CI separates static checks from execution. Release verification executes the not
 ## AI provenance
 
 These tutorials were developed with substantial AI assistance using **GPT-5.6 Sol High**, via **OpenAI / ChatGPT**, under Agent Relay role **Builder**, with maintainer direction and review. Attribution is provenance, not sign-off or independent verification.
+
+
+## Sample dataset portfolio
+
+The E2E regressor tutorial includes three sample paths while preserving the hardened Notebook Specification v1.0 workflow:
+
+- **Diabetes** — numeric regression sanity check, built into scikit-learn.
+- **California Housing** — deterministic 2,000-row numeric subsample from scikit-learn's California housing dataset.
+- **Insurance Medical Charges** — mixed categorical/numeric regression from the repository sample archive.
+
+The external Insurance Medical Charges archive is downloaded from immutable repository revision `ec4d9e88846aac5dc478975c698703d38737575a` (retained by `anchors/sample-data-20260911`) and verified against its recorded SHA-256 (`7e16a06e13a7cb58fabb27ee53c1e20af83575c12ac97ea874fea45f013690a2`) before use. Dataset provenance, schemas, split construction, and licensing are documented in `../examples/sample-data/DATASET_CARD.md`.
