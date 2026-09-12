@@ -82,4 +82,4 @@ The E2E regressor tutorial includes three sample paths while preserving the hard
 - **California Housing** — deterministic 2,000-row numeric subsample from scikit-learn's California housing dataset.
 - **Insurance Medical Charges** — mixed categorical/numeric regression from the repository sample archive.
 
-The external sample archive is downloaded from this repository's `main` branch and verified against its recorded SHA-256 (`7e16a06e13a7cb58fabb27ee53c1e20af83575c12ac97ea874fea45f013690a2`) before use. Dataset provenance, schemas, split construction, and licensing are documented in `../examples/sample-data/DATASET_CARD.md`.
+The external Insurance Medical Charges archive is downloaded from immutable repository revision `ec4d9e88846aac5dc478975c698703d38737575a` (retained by `anchors/sample-data-20260911`) and verified against its recorded SHA-256 (`7e16a06e13a7cb58fabb27ee53c1e20af83575c12ac97ea874fea45f013690a2`) before use. Dataset provenance, schemas, split construction, and licensing are documented in `../examples/sample-data/DATASET_CARD.md`.
