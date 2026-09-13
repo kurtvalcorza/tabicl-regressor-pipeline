@@ -1,43 +1,22 @@
+"""CSV-header and artifact-path safety regressions.
+
+These behaviours used to live inline in the tutorial notebooks and were tested by extracting the
+functions from the notebook source; they now live in the public reference API
+(`tabicl_regressor_pipeline.api`), which the standalone notebooks carry verbatim, so the tests
+exercise the package functions directly.
+"""
 from __future__ import annotations
 
-import ast
-import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import pandas as pd
-
 ROOT = Path(__file__).resolve().parents[1]
-MAIN = ROOT / 'tutorials/tabiclv2_regressor_colab.ipynb'
-INFERENCE = ROOT / 'tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb'
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
 
-
-def load_code(path: Path) -> str:
-    nb = json.loads(path.read_text(encoding="utf-8"))
-    chunks = []
-    for cell in nb["cells"]:
-        if cell.get("cell_type") != "code":
-            continue
-        src = cell.get("source", "")
-        s = "".join(src) if isinstance(src, list) else str(src)
-        s = "\n".join(line for line in s.splitlines() if not line.lstrip().startswith("%"))
-        chunks.append(s)
-    return "\n".join(chunks)
-
-
-def extract_functions(source: str, names: set[str]):
-    tree = ast.parse(source)
-    selected = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
-    mod = ast.Module(body=selected, type_ignores=[])
-    ast.fix_missing_locations(mod)
-    ns = {"csv": __import__("csv"), "io": __import__("io"), "pd": pd, "Path": Path}
-    exec(compile(mod, "<extracted>", "exec"), ns)
-    return ns
-
-
-main_ns = extract_functions(load_code(MAIN), {"raw_header", "duplicate_names", "read_csv_payload"})
-inf_ns = extract_functions(load_code(INFERENCE), {"raw_header", "read_inference_csv", "manifest_member_path"})
+from tabicl_regressor_pipeline import manifest_member_path, read_csv_payload, read_inference_csv  # noqa: E402
 
 
 class ColabSafetyTests(unittest.TestCase):
@@ -50,31 +29,29 @@ class ColabSafetyTests(unittest.TestCase):
         ]
         for payload in payloads:
             with self.assertRaisesRegex(ValueError, "duplicate column names"):
-                main_ns["read_csv_payload"](payload, "train.csv")
+                read_csv_payload(payload, "train.csv")
 
     def test_valid_training_headers_keep_order(self):
-        frame = main_ns["read_csv_payload"](b'amount,"sale,amount",target\n1,2,x\n', "train.csv")
+        frame = read_csv_payload(b'amount,"sale,amount",target\n1,2,x\n', "train.csv")
         self.assertEqual(list(frame.columns), ["amount", "sale,amount", "target"])
 
     def test_inference_duplicate_headers_rejected_and_order_kept(self):
         with self.assertRaisesRegex(ValueError, "duplicate column names"):
-            inf_ns["read_inference_csv"](b"a,a\n1,2\n", ["a"])
-        frame = inf_ns["read_inference_csv"](b'amount,"sale,amount"\n1,2\n', ["amount", "sale,amount"])
+            read_inference_csv(b"a,a\n1,2\n", ["a"])
+        frame = read_inference_csv(b'amount,"sale,amount"\n1,2\n', ["amount", "sale,amount"])
         self.assertEqual(list(frame.columns), ["amount", "sale,amount"])
 
     def test_manifest_member_path_is_confined_to_artifact_root(self):
-        fn = inf_ns["manifest_member_path"]
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             expected = (root / "checkpoints" / "best.ckpt").resolve()
-            self.assertEqual(fn(root, "checkpoints/best.ckpt", "checkpoint"), expected)
-            self.assertEqual(fn(root, "./checkpoints/best.ckpt", "checkpoint"), expected)
+            self.assertEqual(manifest_member_path(root, "checkpoints/best.ckpt", "checkpoint"), expected)
+            self.assertEqual(manifest_member_path(root, "./checkpoints/best.ckpt", "checkpoint"), expected)
 
             absolute_escape = str((root.parent / "escape.ckpt").resolve())
             for value in (absolute_escape, "../escape.ckpt", "checkpoints/../../escape.ckpt"):
-                with self.subTest(value=value):
-                    with self.assertRaises(ValueError):
-                        fn(root, value, "checkpoint")
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    manifest_member_path(root, value, "checkpoint")
 
 
 if __name__ == "__main__":

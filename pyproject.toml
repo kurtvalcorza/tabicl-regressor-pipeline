@@ -7,9 +7,40 @@ name = "tabicl-regressor-pipeline"
 version = "0.1.0"
 description = "Public reference API for the DIMER TabICLv2 regressor pipeline contract"
 requires-python = ">=3.11"
+# Exact runtime pins (NOTEBOOK_SPEC 1.1 ENV2/PAR2): the standalone tutorial notebooks carry this list verbatim
+# as their inline PINS. It is the release-verified notebook lock set (tutorials/requirements-release.txt +
+# torch 2.11.0, previously runtime-provided). huggingface-hub stays at the lock's 1.30.0 because
+# transformers 5.6.2 (needed by the opt-in fine-tuning path) requires huggingface-hub>=1.5.0.
+dependencies = [
+  "tabicl==2.1.1",
+  "torch==2.11.0",
+  "numpy==2.5.3",
+  "pandas==2.3.3",
+  "scikit-learn==1.9.0",
+  "pyarrow==25.0.1",
+  "lightgbm==4.7.0",
+  "huggingface-hub==1.30.0",
+  "transformers==5.6.2",
+  "wandb==0.27.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "ruff==0.16.6"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
