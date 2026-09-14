@@ -9,6 +9,8 @@ tags:
   - quantile-regression
   - tabicl
 base_model: jingang/TabICL
+date_published: "2026-02-12"
+date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt`, https://huggingface.co/api/models/jingang/TabICL)"
 ---
 
 # TabICLv2 (tabicl 2.1.1) — Tabular Foundation Model (Classifier & Regressor)
@@ -18,7 +20,6 @@ base_model: jingang/TabICL
 [![arXiv Paper](https://img.shields.io/badge/arXiv-2602.11139-b31b1b.svg)](https://arxiv.org/abs/2602.11139)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Classifier Pipeline](https://img.shields.io/badge/Classifier%20Repo-tabicl--classifier--pipeline-2ea44f?style=flat&logo=github)](https://github.com/kurtvalcorza/tabicl-classifier-pipeline)
-[![Regressor Pipeline](https://img.shields.io/badge/Regressor%20Repo-tabicl--regressor--pipeline-0969da?style=flat&logo=github)](https://github.com/kurtvalcorza/tabicl-regressor-pipeline)
 
 > [!WARNING]
 > ⚠️ **Provided for research, training, and evaluation purposes only.** Model weights are redistributed unmodified under their upstream license, which controls your use, including any commercial use or redistribution; the accompanying code and notebooks are released under this repository's license. All of it is supplied **"as is"**, without warranty of any kind, and has not been validated for production, clinical, or safety-critical use. Running the notebooks downloads third-party weights and datasets governed by their own licenses and consumes compute on your own Colab/Kaggle account. To the maximum extent permitted by law, the maintainers of this repository and the DIMER platform accept no liability for any damages arising from their use. Hosting implies no affiliation with or endorsement by the original authors.
@@ -54,7 +55,7 @@ Both pipeline implementations provide ready-to-run interactive Google Colab note
 
 ---
 
-###### Description
+#### Description
 
 TabICLv2 Regressor packages the `tabicl-regressor-v2-20260212.ckpt` checkpoint from `jingang/TabICL` at Hugging Face revision `4dcd344ece2c00be9e831fdd35bed57b5ad83e19`, a pretrained tabular foundation model developed by Jingang Qu, David Holzmüller, Gaël Varoquaux, and Marine Le Morvan of the Soda team at Inria, run through the `tabicl==2.1.1` reference implementation. The model is a three-stage Transformer for tables — a column-wise encoder that embeds each feature distribution, a row-wise encoder that builds one representation per observation, and a dataset-wise in-context-learning Transformer that attends from the labelled support rows to the query rows. Its regression head predicts 999 target quantiles (α = 0.001 … 0.999) trained with pinball loss, and the reference implementation averages them into the point estimate that `predict()` returns.
 
