@@ -2,6 +2,7 @@
 license: bsd-3-clause
 model_card_spec: "1.1"
 pipeline_tag: tabular-regression
+task: "Others - Tabular Regression"
 tags:
   - tabular-regression
   - tabular-foundation-model
