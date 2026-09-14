@@ -82,3 +82,7 @@ The standalone E2E regressor tutorial includes two sample paths plus BYOD:
 - **Insurance Medical Charges** — the mixed categorical/numeric archive under `examples/sample-data/` is **no longer fetched by the notebook**: a standalone notebook may not reach this repository (ST1), and the archive's raw GitHub URL was the only way to obtain it. Use it through `DATA_SOURCE = "Upload pre-split train/val/test"` by uploading its `train.csv` / `val.csv` / `test.csv`.
 
 The external Insurance Medical Charges archive is downloaded from immutable repository revision `ec4d9e88846aac5dc478975c698703d38737575a` (retained by `anchors/sample-data-20260911`) and verified against its recorded SHA-256 (`7e16a06e13a7cb58fabb27ee53c1e20af83575c12ac97ea874fea45f013690a2`) before use. Dataset provenance, schemas, split construction, and licensing are documented in `../examples/sample-data/DATASET_CARD.md`.
+
+## AI Assistance Disclosure
+
+This tutorial and its accompanying documentation were developed with generative AI assistance for code development and technical writing under maintainer direction. The maintainer remains responsible for reviewing the implementation, validating results, and making release decisions. AI assistance does not constitute independent verification, provider endorsement, or release approval.
