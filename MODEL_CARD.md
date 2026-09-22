@@ -60,11 +60,11 @@ Both pipeline implementations provide ready-to-run interactive Google Colab note
 
 TabICLv2 Regressor packages the `tabicl-regressor-v2-20260212.ckpt` checkpoint from `jingang/TabICL` at Hugging Face revision `4dcd344ece2c00be9e831fdd35bed57b5ad83e19`, a pretrained tabular foundation model developed by Jingang Qu, David Holzmüller, Gaël Varoquaux, and Marine Le Morvan of the Soda team at Inria, run through the `tabicl==2.1.1` reference implementation. The model is a three-stage Transformer for tables — a column-wise encoder that embeds each feature distribution, a row-wise encoder that builds one representation per observation, and a dataset-wise in-context-learning Transformer that attends from the labelled support rows to the query rows. Its regression head predicts 999 target quantiles (α = 0.001 … 0.999) trained with pinball loss, and the reference implementation averages them into the point estimate that `predict()` returns.
 
-At inference the model conditions on the labelled training table as in-context support and emits one continuous estimate per query row. Adaptation happens through in-context conditioning by default and, in this pipeline, through gradient fine-tuning on the operator's table (`tabicl-regressor-finetuner/train.py`, `early_stopping=True`, learning rate 1e-5 by default). What this repository adds is the DIMER composition around those weights: the pipeline contract (`dimer-pipeline.json`, `DIMER_CONTRACT.md`), the dataset specification, the Colab artifact-inference tutorial, and the release conformance record; the validator and fine-tuner workers it composes live in the sibling `tabicl-regressor-dataset-validator` and `tabicl-regressor-finetuner` repositories. The upstream checkpoint is not modified by this repository, and the served contract exposes the point estimate only — the underlying quantiles are not surfaced.
+At inference the model conditions on the labelled training table as in-context support and emits one continuous estimate per query row. Adaptation happens through in-context conditioning by default and, in this pipeline, through gradient fine-tuning on the operator's table (`tabicl-regressor-finetuner/train.py`, `early_stopping=True`, learning rate 1e-5 by default). What this repository adds is the DIMER composition around those weights: the pipeline contract (`dimer-pipeline.json`, `DIMER_CONTRACT.md`), the dataset specification, the Colab artifact-inference tutorial, and the release conformance record; the validator and fine-tuner it composes live in the sibling `tabicl-regressor-dataset-validator` and `tabicl-regressor-finetuner` repositories. The upstream checkpoint is not modified by this repository, and the served contract exposes the point estimate only — the underlying quantiles are not surfaced.
 
 #### Intended Use and Limitations
 
-The use cases below are the ones envisioned during development; the limits are the ones the workers enforce.
+The use cases below are the ones envisioned during development; the limits are the ones the pipeline enforces.
 
 ###### Primary Intended Uses
 
@@ -74,7 +74,7 @@ Concrete application domains envisioned during development: demand and quantity 
 
 ###### Primary Intended Users
 
-Machine-learning researchers, data scientists, machine-learning engineers, software developers, and scientific researchers building predictive systems from structured datasets. The envisioned deployment setting is internal enterprise or research use through the DIMER platform, where the fine-tuner runs as a CUDA worker and the validator as a CPU worker — not a public-facing service.
+Machine-learning researchers, data scientists, machine-learning engineers, software developers, and scientific researchers building predictive systems from structured datasets. The envisioned deployment setting is internal enterprise or research use through the DIMER platform, with the fine-tuner on a CUDA device and the validator on CPU — not a public-facing service.
 
 The pipeline assumes its users understand dataset provenance, holdout evaluation, leakage, and distribution shift, and know that the served prediction is a quantile-averaged point estimate with no attached interval, that MAE on a few hundred holdout rows has wide variance, that a sparse or heavy-tailed target needs a naive baseline for comparison, and that fine-tuning needs a CUDA GPU and will fail without one rather than fall back. A user who cannot tell a held-out error from an in-sample one is outside the assumed competency.
 
@@ -146,7 +146,7 @@ Where such a use is foreseeable — a dosing or exposure regressor on a clinical
 
 ###### Mitigations
 
-Implemented in the composed workers, each inspectable in the named code; in the standalone tutorials the public `validate_inputs` helper applies the table checks and records the verdict and any rejection finding in an input manifest before any model execution:
+Implemented in the fine-tuner and validator, each inspectable in the named code; in the standalone tutorials the public `validate_inputs` helper applies the table checks and records the verdict and any rejection finding in an input manifest before any model execution:
 
 - **Supply-chain integrity:** the base checkpoint is downloaded with `hf_hub_download(..., revision=BASE_MODEL_REVISION)` at `4dcd344e…`, its SHA-256 is computed and compared with `BASE_MODEL_SHA256` (`0db9cb53…`), and a mismatch raises unless the checkpoint was DIMER-provided, in which case the digest and pin status are recorded in provenance rather than enforced; `tabicl` is pinned to 2.1.1.
 - **Input integrity:** the validator rejects archives over 1 GiB uncompressed, fewer than 50 usable training or 10 evaluation rows, more than 2,000 features, and a target that is non-numeric, non-finite, or constant, with wrong-pipeline guidance when the target looks categorical; the fine-tuner re-applies the row and feature limits.
