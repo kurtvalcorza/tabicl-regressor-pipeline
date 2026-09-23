@@ -74,7 +74,7 @@ Concrete application domains envisioned during development: demand and quantity 
 
 ###### Primary Intended Users
 
-Machine-learning researchers, data scientists, machine-learning engineers, software developers, and scientific researchers building predictive systems from structured datasets. The envisioned deployment setting is internal enterprise or research use through the DIMER platform, with the fine-tuner on a CUDA device and the validator on CPU — not a public-facing service.
+Machine-learning researchers, data scientists, machine-learning engineers, software developers, and scientific researchers building predictive systems from structured datasets. The envisioned deployment setting is research or in-house enterprise use on infrastructure the user controls, with the repository's fine-tuner on a CUDA device and its validator on CPU — not a public-facing service.
 
 The pipeline assumes its users understand dataset provenance, holdout evaluation, leakage, and distribution shift, and know that the served prediction is a quantile-averaged point estimate with no attached interval, that MAE on a few hundred holdout rows has wide variance, that a sparse or heavy-tailed target needs a naive baseline for comparison, and that fine-tuning needs a CUDA GPU and will fail without one rather than fall back. A user who cannot tell a held-out error from an in-sample one is outside the assumed competency.
 
