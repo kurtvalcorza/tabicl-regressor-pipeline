@@ -1,0 +1,98 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/tabicl-regressor-pipeline-fe7596f-149ca6/tabiclv2_regressor_artifact_inference_colab_fe7596f_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/9 - Infrastructure: check the runtime, accelerator and disk; create (or keep) the run directory...
+{'accelerator': 'Tesla T4, 15360 MiB', 'kernel_python': '3.13.15', 'run_directory': '/content/dimer_runs/tabiclv2_regressor_artifact_inference/ca0693ab5002', 'outputs': '/content/outputs', 'weights': '/content/weights', 'environment_root': '/tmp/dimer_uv', 'free_gib': {'weights': 193.3, 'environment': 193.3}}
+[colab] Executing cell 2/9 - Infrastructure: write and verify the carried package, stage runner, lock, manifest and samples...
+{'carried_files': 11, 'verified': True, 'repository': 'kurtvalcorza/tabicl-regressor-pipeline', 'revision': '453066a03746d654a8d031975c6842e5a1f33e4c', 'generator': 'build_notebook.py/3.0-tabular'}
+[colab] Executing cell 3/9 - Infrastructure: build (or reuse) the isolated locked environment and define the stage runner...
+{'notebook_source': '453066a03746d654a8d031975c6842e5a1f33e4c', 'python': '3.12.12', 'torch': '2.11.0', 'tabicl': '2.1.1', 'numpy': '2.5.3', 'pandas': '2.3.3', 'scikit-learn': '1.9.0', 'lightgbm': '4.7.0', 'cuda': True, 'locked_packages': 85, 'environment': '/tmp/dimer_uv/venv-a5cb48abb672a334', 'environment_reused': False, 'setup_seconds': 72}
+[colab] Executing cell 4/9 - Infrastructure: stage and digest-verify the pinned checkpoint...
+Running stage 'weights' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor_artifact_inference/ca0693ab5002/logs/weights.log
+{'model_id': 'jingang/TabICL', 'revision': '4dcd344ece2c00be9e831fdd35bed57b5ad83e19', 'license': 'bsd-3-clause', 'files': 1, 'total_bytes': 114324594}
+{'weights_dir': '/content/weights/tabicl-regressor-v2', 'fetched': ['tabicl-regressor-v2-20260212.ckpt']}
+{'verified_files': 1, 'revision': '4dcd344ece2c00be9e831fdd35bed57b5ad83e19', 'sha256': ['0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a']}
+[colab] Executing cell 5/9 - tabiclv2_regressor_artifact_inference-14...
+Running stage 'artifact' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor_artifact_inference/ca0693ab5002/logs/artifact.log
+{'source': 'sample', 'zip': None, 'trusted_digest': 'verified (artifact.json against the pinned sample record)', 'mode': 'pretrained', 'checkpoint_binding': 'identical to the pinned base checkpoint (SHA-256 checked)'}
+{'selection': 'default:pretrained (offline sample build; no model run)', 'base': 'tabicl-regressor-v2-20260212.ckpt', 'base_revision': '4dcd344ece2c', 'producer_runtime': {'pythonVersion': '3.12.12', 'torchVersion': '2.11.0', 'note': "offline build by tools/build_sample_bundle.py: no model was run and torch was not imported; the versions are the pinned lock's"}}
+{'featureColumns': 10, 'targetColumn': 'target', 'contextRows': 265, 'contextTarget': {'min': 25.0, 'max': 346.0, 'mean': 151.03}, 'nEstimators': 8, 'categoricalEncoders': []}
+[colab] Executing cell 6/9 - tabiclv2_regressor_artifact_inference-17...
+Running stage 'reconstruct' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor_artifact_inference/ca0693ab5002/logs/reconstruct.log
+{'context_rows': 265, 'context_target': {'min': 25.0, 'max': 346.0, 'mean': 151.03}, 'features': 10, 'target': 'target', 'device': 'cuda', 'source': 'artifact', 'checkpoint_binding': 'identical to the pinned base checkpoint (SHA-256 checked)'}
+[colab] Executing cell 7/9 - tabiclv2_regressor_artifact_inference-20...
+Running stage 'rows' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor_artifact_inference/ca0693ab5002/logs/rows.log
+{'ceilings': {'MIN_TRAIN_ROWS': 50, 'MAX_TRAIN_ROWS': 50000, 'MAX_FEATURES': 2000}, 'required_features': 10, 'target': 'target'}
+{
+  "schema": {
+    "input": "pandas.DataFrame, one row per example; numeric/categorical features plus a numeric target",
+    "columns": "unique names; non-numeric feature columns are ordinal-encoded with maps fitted on training",
+    "target": "coerced to float; rows whose target is missing or non-finite are dropped and counted; must vary (>= 2 distinct values)",
+    "train_rows": [
+      50,
+      50000
+    ],
+    "eval_rows": [
+      2,
+      null
+    ],
+    "features": [
+      1,
+      2000
+    ],
+    "inference_input": "every fitted feature column present; no `prediction` column; extras pass through",
+    "preprocessing": "no scaling by the package; unseen or missing categorical values map to the fitted 'unknown' code; the model is conditioned on the (encoded) training rows at prediction time"
+  },
+  "inputs": [
+    {
+      "id": "new_rows.csv",
+      "mode": "inference",
+      "rows": 8,
+      "feature_columns": [
+        "age",
+        "sex",
+        "bmi",
+        "bp",
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6"
+      ],
+      "extra_columns": [
+        "row_id"
+      ],
+      "missing_value_columns": {}
+    }
+  ],
+  "target_column": null,
+  "min_rows": null,
+  "verdict": "accepted",
+  "findings": [
+    {
+      "input": "missing-column-probe",
+      "verdict": "rejected",
+      "message": "Inference CSV missing features: ['age']"
+    }
+  ],
+  "model_id": "jingang/TabICL",
+  "model_revision": "4dcd344ece2c00be9e831fdd35bed57b5ad83e19"
+}
+[colab] Executing cell 8/9 - tabiclv2_regressor_artifact_inference-23...
+Running stage 'predict' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor_artifact_inference/ca0693ab5002/logs/predict.log
+ row_id     age     sex     bmi      bp      s1      s2      s3      s4      s5      s6  prediction
+    285  0.0126 -0.0446 -0.0202 -0.0160  0.0122  0.0212 -0.0765  0.1081  0.0599 -0.0218    182.7016
+    255  0.0018 -0.0446 -0.0655 -0.0057 -0.0071 -0.0195  0.0413 -0.0395 -0.0033  0.0072    104.7317
+    370  0.0199 -0.0446 -0.0579 -0.0573 -0.0016 -0.0126  0.0744 -0.0395 -0.0612 -0.0756     74.3926
+    349  0.0018  0.0507 -0.0579 -0.0435 -0.0965 -0.0470 -0.0986  0.0343 -0.0612 -0.0715    107.7714
+     57 -0.0273 -0.0446 -0.0633 -0.0504 -0.0896 -0.1043  0.0523 -0.0764 -0.0562 -0.0674     93.5872
+    124 -0.0055 -0.0446  0.0240  0.0081 -0.0346 -0.0389  0.0229 -0.0395 -0.0160 -0.0135    157.4960
+    331  0.0817  0.0507 -0.0256 -0.0367 -0.0704 -0.0464 -0.0397 -0.0026 -0.0412 -0.0052    117.1875
+    193  0.0090  0.0507 -0.0051 -0.0642  0.0700  0.0839 -0.0397  0.0712  0.0395  0.0196    136.1901
+{
+  "verdict": "not-measurable",
+  "sample_kind": "sample",
+  "reason": "no labelled holdout rows were supplied for the scored table"
+}
+[colab] Executing cell 9/9 - tabiclv2_regressor_artifact_inference-26...
+Optional activity skipped: tick RUN_ACTIVITY to run it. The canonical outputs are complete.
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/tabicl-regressor-pipeline-fe7596f-149ca6/tabiclv2_regressor_artifact_inference_colab_fe7596f_colab-cli-t4_output.ipynb'...
