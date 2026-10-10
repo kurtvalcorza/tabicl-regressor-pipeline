@@ -1,0 +1,28 @@
+{
+  "description": "Pinned sample bundle for the ARTIFACT-INFERENCE notebook's default path: the bundle the E2E notebook exports on its default path (Sample: Diabetes, mode pretrained), without its checkpoint, which is the pinned base checkpoint.",
+  "producer": "tools/build_sample_bundle.py: the E2E stage runner's stage_data + stage_validate + build_manifest; no model was run (metrics: null)",
+  "checkpoint": {
+    "is": "the pinned base checkpoint (mode pretrained)",
+    "file": "tabicl-regressor-v2-20260212.ckpt",
+    "bytes": 114324594,
+    "sha256": "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a"
+  },
+  "e2e_cross_check": "the E2E notebook's export prints matches_pinned_sample_context on its default path",
+  "data": "scikit-learn load_diabetes (Efron et al. 2004; 442 rows, 10 standardised features), seeded random 60/20/20 split, seed 42; the support (train) partition",
+  "support_rows": 265,
+  "artifact_sha256": "2ff9024cd351df6b4d627e1640dcad971ff6cecb32f4bc94bbffcc9408696a30",
+  "files": {
+    "artifact.json": {
+      "bytes": 1591,
+      "sha256": "2ff9024cd351df6b4d627e1640dcad971ff6cecb32f4bc94bbffcc9408696a30"
+    },
+    "training_context.parquet": {
+      "bytes": 16774,
+      "sha256": "25f93f53633fed622b63522e5db7667c78538147c564a7824544d6d4b5592382"
+    },
+    "new_rows.csv": {
+      "bytes": 1761,
+      "sha256": "54c633a899149c18959aafe869c296fc1674dd4e9406722ebe094aed7d5cbd15"
+    }
+  }
+}
