@@ -1,0 +1,54 @@
+{
+  "artifactFormat": "tabicl-dimer-regressor-v1",
+  "checkpoint": "checkpoints/best.ckpt",
+  "trainingContext": "training_context.parquet",
+  "targetColumn": "target",
+  "featureColumns": [
+    "age",
+    "sex",
+    "bmi",
+    "bp",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s6"
+  ],
+  "baseCheckpoint": "tabicl-regressor-v2-20260212.ckpt",
+  "baseModelRevision": "4dcd344ece2c00be9e831fdd35bed57b5ad83e19",
+  "baseModelSha256": "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a",
+  "tabiclVersion": "2.1.1",
+  "mode": "pretrained",
+  "selectionBasis": "default:pretrained (offline sample build; no model run)",
+  "metrics": null,
+  "inference": {
+    "class": "TabICLRegressor",
+    "modelPath": "checkpoints/best.ckpt",
+    "nEstimators": 8,
+    "randomState": 42,
+    "allowAutoDownload": false,
+    "categoricalEncoders": {}
+  },
+  "digests": {
+    "checkpointSha256": "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a",
+    "trainingContextSha256": "25f93f53633fed622b63522e5db7667c78538147c564a7824544d6d4b5592382"
+  },
+  "sizes": {
+    "checkpoint": 114324594,
+    "trainingContext": 16774
+  },
+  "payloadFiles": [
+    "checkpoints/best.ckpt",
+    "training_context.parquet"
+  ],
+  "runtime": {
+    "pythonVersion": "3.12.12",
+    "torchVersion": "2.11.0",
+    "note": "offline build by tools/build_sample_bundle.py: no model was run and torch was not imported; the versions are the pinned lock's"
+  },
+  "notebookSource": {
+    "producer": "tools/build_sample_bundle.py",
+    "repository": "kurtvalcorza/tabicl-regressor-pipeline"
+  }
+}

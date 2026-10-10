@@ -3,7 +3,7 @@
 `tutorials/tabiclv2_regressor_colab.ipynb` (`E2E`) and `tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb`
 (`ARTIFACT-INFERENCE`) are **release candidates** until the exact notebook revisions have executed top-to-bottom in a
 clean supported runtime. Unit tests, JSON validation, code-cell compilation, and `tools/validate_release_assets.py` are
-necessary checks but are **not** runtime evidence under DIMER Notebook Specification 1.1. This file is the durable
+necessary checks but are **not** runtime evidence under DIMER Notebook Specification 2.2. This file is the durable
 release-gate record for both notebooks.
 
 ## Automatic coverage (static, every pull request)
@@ -13,90 +13,102 @@ CI runs `tools/validate_release_assets.py`, which checks, for each of the two no
 - notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no persisted outputs or
   execution counts; no unresolved placeholder markers; every code cell is preceded by an explanatory markdown cell;
 - exactly the two tutorial notebooks, each named in `tutorials/README.md` with its profile, the notebook-spec version and
-  the standalone carrier; `metadata.dimer` declares that profile, spec `1.1`, `standalone: true` and `generated_from`
-  (repository, module commit, module path, module SHA-256, generator);
-- the standalone carrier (ST1–ST6, PAR1–PAR3): no clone, repository install or repository import on the primary path
-  (the previous pair's `git+https://github.com/kurtvalcorza/...` install and lock URL are gone); one cell tagged
-  `embedded_module` equal to `src/tabicl_regressor_pipeline/api.py` after the generator's documented rewrite (the
-  `DEFAULT_WEIGHTS_DIR` line); the inline `MANIFEST` equal to the committed `weights/tabicl-regressor-v2/dimer-base-manifest.json`
-  and the inline `PINS` equal to the `pyproject.toml` runtime pins; the notebook byte-identical to `tools/build_notebook.py`
-  output for its template; the pinned-install cell with its restart-on-stale-import guard; `NOTEBOOK_SOURCE` recorded in exports;
-- `MODEL_ID`/`MODEL_REVISION` are bound only in the carried module cell (and repeated in the inline manifest, which the
-  notebook asserts against the module before fetching), the revision is a 40-hex immutable commit, and the same identity
-  string appears in `README.md`, `MODEL_CARD.md`, and `docs/WEIGHTS.md` with no stray revisions;
-- the profile-specific public-API calls — E2E: `stage_missing_files`, `verify_snapshot`,
-  `TabICLRegressionPipeline.from_pretrained(weights_dir=WEIGHTS_DIR, n_estimators=8, random_state=42)`, `validate_inputs`
-  (with the too-few-rows rejection probe), `prepare_regression_table`, `fit_categorical_encoder`, `training_mean_baseline`,
-  `fit`, `compare_metric`, `create_finetuned_regressor` / `fine_tune_regressor` behind the CUDA guard, LightGBM / Random Forest
-  on the same partitions, `evaluation_report` with the independent test, `read_inference_csv` + inference-mode
-  `validate_inputs`, the bundle export with `sha256_file` digests and the payload allowlist, `safe_extract_zip` +
-  `verify_artifact_bundle` on the fresh reload and the `rtol=1e-5, atol=1e-7` equivalence check; companion:
-  `safe_extract_zip`, `validate_artifact_runtime`, the base-model identity/digest comparison, `verify_artifact_bundle`,
-  reconstruction on the bundled checkpoint with `allow_auto_download=False`, inference-mode `validate_inputs` with a
-  rejection probe, `apply_categorical_encoder`, `predict`, a `not-measurable` `evaluation_report` — the ceiling prints,
-  the four exports per notebook, the learner-facing statements (point estimates only, dropped rows counted, BYOD privacy
-  boundary, fine-tuning gate/disk usage/reproducibility boundaries, member-by-member extraction, trust boundary, no artifact
-  created in the companion), and the three gated-off form parameters (`USE_BYOD`, `RUN_FINE_TUNING`, `RUN_NEW_DATA_INFERENCE`);
-  forbidden patterns (credential-in-URL, own-repository clone/install, a `git+https://` dependency without a 40-hex SHA,
-  a mutable `revision='main'`, `worker.run(` / `worker_cli(` / `subprocess.run([` outside the install cell, direct
-  `from tabicl import` / `TabICLRegressor(` / `FinetunedTabICLRegressor(` / `zipfile.ZipFile(` / `hf_hub_download(` /
-  `sklearn.metrics` use **outside the carried module cell**, `trust_remote_code=True`, `pickle.load`, `torch.load(`,
-  `extractall(`; in the companion also `load_diabetes(`, `fetch_california_housing(`, `shutil.make_archive(`, any fine-tuning call);
+  the standalone carrier; `metadata.dimer` declares that profile, spec `2.2`, mode `GUIDED`, `standalone: true` and
+  `generated_from` (repository, generating commit, package module paths and SHA-256, carried-file digests, generator
+  `build_notebook.py/3.0-tabular`);
+- the standalone carrier and isolated environment (ST1–ST6, PAR1–PAR3, RUN1, RUN10, ENV6): no clone, repository install
+  or repository import on the primary path and nothing installed into the notebook kernel; one carrier cell
+  (`metadata.dimer.embedded_sources`) whose `CARRIED_FILES` / `CARRIED_BINARY` equal the repository files they come from
+  (`src/tabicl_regressor_pipeline/{__init__,api}.py`, the stage runner `tools/tutorial_stages.py` or
+  `tools/tutorial_stages_artifact_inference.py`, `tutorials/requirements-colab.lock.txt`, the committed
+  `weights/tabicl-regressor-v2/dimer-base-manifest.json`, the licence, and the companion's pinned sample bundle from
+  `examples/sample-bundle/`) with matching `CARRIED_HASHES`; the lock pins every `pyproject.toml` runtime pin with hashes;
+  the install cell builds a managed-CPython virtual environment with a pinned `uv` (size + SHA-256 checked) and
+  `--require-hashes`, keyed on the lock digest, drops `PYTHONPATH`/`PYTHONHOME`/`PYTHONSTARTUP` and sets `MPLBACKEND=Agg`
+  for the stages; the four Infrastructure cells are titled and collapsed; every learner cell runs a stage (`run_stage`);
+  no "restart the runtime" instruction anywhere; the notebook byte-identical to `tools/build_notebook.py` output;
+- `MODEL_ID`/`MODEL_REVISION` are bound only in the carried package (and repeated in the carried manifest, which the
+  `weights` stage checks against the package before fetching), the revision is a 40-hex immutable commit, and the same
+  identity string appears in `README.md`, `MODEL_CARD.md`, and `docs/WEIGHTS.md` with no stray revisions;
+- the profile-specific calls in the stage runners — E2E: `stage_missing_files`, `verify_snapshot`,
+  `TabICLRegressionPipeline.from_pretrained(weights_dir=..., n_estimators=..., random_state=42)`, `validate_inputs`
+  (with the too-few-rows rejection probe), the BYOD checks (missing target column named with the header, present but
+  unparseable targets refused naming the values — thousands separators diagnosed —, more than 20 % blank targets
+  refused, numeric columns with stray strings refused unless listed in `TEXT_COLUMNS`, the blank-target count carried
+  into the input manifest), `prepare_regression_table`, `fit_categorical_encoder`, `training_mean_baseline`, `fit`, the
+  bounded `create_finetuned_regressor` / `fine_tune_regressor` run (3 epochs, 300 s, patience 2) with holdout-only selection
+  (`compare_metric`, `MIN_SELECTION_HOLDOUT_ROWS`) and a recorded skip on CPU, a standardised linear regression, LightGBM and a random forest on the
+  same partitions with paired standard errors of the MSE differences, `evaluation_report` with the independent test,
+  `read_inference_csv` + inference-mode `validate_inputs`, the bundle export with digests, the payload allowlist and the
+  printed ZIP SHA-256, `safe_extract_zip` + `verify_artifact_bundle` on the fresh reload and the `rtol=1e-5, atol=1e-7`
+  equivalence check; companion: the trusted-digest check (`EXPECTED_ZIP_SHA256`) before `safe_extract_zip`,
+  `validate_artifact_runtime`, the base-model identity check including the pretrained checkpoint binding
+  (`digests.checkpointSha256 == BASE_MODEL_SHA256`), `verify_artifact_bundle`, reconstruction on the bundled checkpoint with
+  `allow_auto_download=False`, inference-mode `validate_inputs` with a rejection probe, the numeric-feature check,
+  `apply_categorical_encoder`, `predict`, a `not-measurable` `evaluation_report` — the ceiling prints, the four exports per
+  notebook, the learner-facing statements, the form-parameter defaults (`USE_BYOD`, the BYOD path fields,
+  `RUN_NEW_DATA_INFERENCE`, `RUN_ACTIVITY` off; the companion's `ARTIFACT_ZIP_PATH`, `UPLOAD_ARTIFACT`,
+  `EXPECTED_ZIP_SHA256`, `NEW_DATA_PATH`, `UPLOAD_NEW_DATA` empty/off), and no quality `assert` in the stage runners;
+  forbidden patterns (credential-in-URL, own-repository clone/install, a `git+https://` dependency without a 40-hex SHA, a
+  mutable `revision='main'`, direct `from tabicl import` / `TabICLRegressor(` / `FinetunedTabICLRegressor(` /
+  `hf_hub_download(` / `sklearn` use **in the notebook's own cells**, `trust_remote_code=True`, `pickle.load`, `torch.load(`,
+  `extractall(`; in the companion's runner also `load_diabetes(`, `fetch_california_housing(`,
+  `training_mean_baseline(`, `shutil.make_archive(`, any fine-tuning call);
 - `STATUS.md`, `README.md` and `tutorials/README.md` agree on one release-status token and no document makes an
   unsupported release-grade, production-readiness or benchmark claim;
 - `MODEL_CARD.md` front matter, single H1, required heading order, and the `## Checkpoint Provenance` section.
 
 CI also runs `ruff`, `tools/build_notebook.py --check` for both templates, `scripts/validate_colab_tutorial.py` (the
-repository's own spec-1.1 checks: exact build backend, lock files, fine-tune gate, hardening markers), the two
-`scripts/test_*.py` regression suites (now against the package functions) and the offline unit suite (`tests/`:
-`test_snapshot_helpers.py`, `test_role_helpers.py`, `test_notebook_parity.py`, `test_companion_parity.py`; injected
-downloader, no weights, no model). These are source/provenance and unit checks. They are **not** execution evidence.
+repository's own checks: exact build backend, release lock files and their agreement with the pins, the carried hash lock,
+the fine-tune gate and its bounds, hardening markers), the two `scripts/test_*.py` suites and the offline
+unit suite (`tests/`: snapshot, role and weight-fact helpers, `test_notebook_parity.py`, `test_companion_parity.py`, and
+`test_notebook_review_fixes.py`, which execs the notebooks' own cells with stand-ins and runs the model-free stages; no
+weights, no model). `tools/build_sample_bundle.py --check` reproduces `examples/sample-bundle/` byte for byte. These are
+source/provenance and unit checks. They are **not** execution evidence.
 
 ## Executor paths
 
 | Path | Runtime | Role |
 |---|---|---|
-| Google Colab (supported user path) | Colab CPU or GPU runtime, Python 3.11+ | The runtime the tutorials are written for; a clean top-to-bottom run here is promotion evidence |
-| Kaggle CLI kernel | Kaggle kernel, Python 3.11+ image | Reproducible clean-room executor of the same class; the notebook is pushed verbatim plus one leading shim cell that provides `google.colab` and chdirs to a scratch directory (no repository checkout is needed — the notebooks are standalone). For the companion the shim also places the E2E run's `outputs/tabiclv2_regressor_artifact.zip` and a separately generated unlabelled CSV, and sets `ARTIFACT_ZIP_PATH` / `NEW_DATA_PATH` to them |
-| GitHub Actions `release-notebook-execution` (previous pair) | ubuntu, Python 3.13, `nbclient` | Executed the previous repository-installing pair through real kernels (`scripts/execute_notebook_release.py`, `/content` workspace, `DIMER_ARTIFACT_PATH` / `DIMER_INFERENCE_CSV_PATH`); it must be re-pointed at the standalone pair (`outputs/` workspace, `ARTIFACT_ZIP_PATH` / `NEW_DATA_PATH` form parameters) before it counts again |
+| Google Colab (supported user path) | Colab T4 GPU runtime (CPU runs everything except fine-tuning); any kernel Python — the stages run on the isolated environment's CPython 3.12.12 | The runtime the tutorials are written for; a clean one-pass **Run all** here is promotion evidence |
+| Kaggle CLI kernel | Kaggle GPU kernel, any image Python | Reproducible clean-room executor of the same class; the notebook is pushed verbatim (no repository checkout is needed — the notebooks are standalone, and neither notebook's default path opens an upload dialog). For the companion's executor path, set `ARTIFACT_ZIP_PATH` to the E2E run's `outputs/tabiclv2_regressor_artifact.zip`, `EXPECTED_ZIP_SHA256` to the digest that run printed, and `NEW_DATA_PATH` to its `outputs/tabiclv2_regressor_new_rows.csv` |
+| GitHub Actions `release-notebook-execution` (previous pair) | ubuntu, Python 3.13, `nbclient` | Executed the previous repository-installing pair through real kernels (`scripts/execute_notebook_release_paths.py`); it must be re-pointed at the standalone pair before it counts again |
 
 ## Supported release verification procedure
 
 Before changing the registry status from `Candidate` to `Release-grade`:
 
 1. resolve the exact PR/commit head under review and confirm static CI is green;
-2. open the exact E2E notebook revision in a new CPU (or CUDA) runtime with **no repository checkout** and a clean model cache;
-3. run it top-to-bottom without editing implementation cells (form parameters at their defaults: `DATA_SOURCE = 'Sample: Diabetes'`,
-   `USE_BYOD = False`, `RUN_FINE_TUNING = False`, `EVAL_METRIC = 'mae'`, `RUN_NEW_DATA_INFERENCE = False`);
-4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the module commit recorded in
-   `metadata.dimer.generated_from` and that the installed core package versions equal the inline `PINS` (= `pyproject.toml`;
-   `torch==2.11.0` is now installed from the pins rather than assumed runtime-provided, and `huggingface-hub` is the lock's 1.30.0);
+2. open the exact E2E notebook revision in a new **T4 GPU** runtime with **no repository checkout** and a clean model cache;
+3. run it with one **Run all** and no restart, without editing implementation cells (form parameters at their defaults:
+   `DATA_SOURCE = 'Sample: Diabetes'`, `USE_BYOD = False`, `RUN_FINE_TUNING = True`, `FINE_TUNE_EPOCHS = 3`,
+   `EVAL_METRIC = 'mae'`, `RUN_NEW_DATA_INFERENCE = False`, `RUN_ACTIVITY = False`), then re-run the export cell
+   once to confirm a second pass reuses the environment and reproduces the bundle digest;
+4. verify that Section 2 reports the carried-file verification and the isolated environment's versions (CPython 3.12.12,
+   `torch` 2.11.0, `tabicl` 2.1.1) with CUDA visible, and that the exported result records `NOTEBOOK_SOURCE` equal to
+   `metadata.dimer.generated_from`;
 5. verify every default-path stage completes:
-   - pinned runtime installed from the inline `PINS` with no GitHub access;
-   - the carried module cell executes (defines `TabICLRegressionPipeline`, the helpers and the bundle safety functions) with no import of the repository package;
-   - pinned `jingang/TabICL` acquisition at the immutable revision through the package: the inline `MANIFEST` is asserted
-     against the module identity and written to `weights/tabicl-regressor-v2/`, `stage_missing_files(WEIGHTS_DIR, allow_download=True)`
-     reports the one manifest entry (`tabicl-regressor-v2-20260212.ckpt`, 114,324,594 bytes) on a clean runtime, `verify_snapshot`
-     returns the manifest dict, and `from_pretrained(...)` reports `source == 'local-snapshot'`;
-   - the diabetes sample split 60/20/20 with its CSV SHA-256 printed; the ceilings (`MIN_TRAIN_ROWS` 50, `MIN_EVAL_ROWS` 2,
-     `MAX_TRAIN_ROWS` 50,000, `MAX_FEATURES` 2,000) surfaced; `validate_inputs` writes `outputs/tabiclv2_regressor_input_manifest.json`
-     (three accepted tables, one recorded rejection finding from the too-few-rows probe); dropped/unseen counts printed;
-   - `fit` (in-context conditioning) and `regression_metrics` on holdout and independent test; `training_mean_baseline`;
-     the fine-tuning gate skipped; LightGBM / Random Forest fitted on the same rows; the blend chosen on holdout RMSE;
-   - `evaluation_report` writes `outputs/tabiclv2_regressor_evaluation_report.json` with verdict `sample-sanity`, the five
-     metric ids, the independent-test block and the training-mean baseline;
-   - eight held-out rows scored into `outputs/tabiclv2_regressor_predictions.csv` (inference upload skipped);
-   - the bundle `outputs/tabiclv2_regressor_artifact.zip` written, extracted with `safe_extract_zip` into `outputs/artifact-reload/`,
-     `verify_artifact_bundle` passes, the rebuilt regressor's predictions equal the in-memory model's within `rtol=1e-5, atol=1e-7`;
-     `outputs/tabiclv2_regressor_result.json` written with `NOTEBOOK_SOURCE`, model revision, model licence, runtime versions and device;
-6. in a **second** clean runtime, run the exact companion notebook revision with `ARTIFACT_ZIP_PATH` pointing at a copy of the
-   E2E run's bundle and `NEW_DATA_PATH` at a separately generated unlabelled CSV (or supply both through the upload dialog);
-   verify the archive checks, `validate_artifact_runtime`, the base-model identity comparison and `verify_artifact_bundle` pass
-   before reconstruction, that `validate_inputs(..., target_column=None, ...)` writes `outputs/tabiclv2_regressor_artifact_inference_input_manifest.json`
-   with one recorded rejection finding, and that the `not-measurable` evaluation report, `..._predictions.csv` and `..._result.json` are written;
+   - pinned `jingang/TabICL` acquisition at the immutable revision: the carried manifest is checked against the package
+     identity, `stage_missing_files` reports the one manifest entry (`tabicl-regressor-v2-20260212.ckpt`) on a clean
+     runtime, and `verify_snapshot` returns its digest;
+   - the diabetes sample split 60/20/20 at random (`train=265, holdout=88, test=89`); the ceilings surfaced; `outputs/tabiclv2_regressor_input_manifest.json` with one recorded rejection finding;
+   - in-context conditioning and the pretrained holdout/test metrics; the **fine-tuning stage ran** (epochs, the
+     candidate's holdout metrics, the selection basis, `best.ckpt` kept only); on the holdout the linear regression at MAE 38.22 /
+     R² 0.581, the random forest 42.28 / 0.495 and LightGBM 44.94 / 0.426; the paired standard errors;
+   - `outputs/tabiclv2_regressor_evaluation_report.json` with verdict `sample-sanity`;
+   - eight held-out rows scored into `outputs/tabiclv2_regressor_predictions.csv`, and their unlabelled copy
+     `outputs/tabiclv2_regressor_new_rows.csv`;
+   - the bundle `outputs/tabiclv2_regressor_artifact.zip` written with its SHA-256 printed and
+     `matches_pinned_sample_context` reported, reloaded in a fresh process with equivalent predictions;
+6. in a **second** clean runtime, run the exact companion notebook revision with its defaults (the pinned sample bundle and
+   rows; no upload) and confirm `trusted_digest: verified`, `mode: pretrained`, the checkpoint binding, 265 context rows, and
+   the `not-measurable` report; then set `ARTIFACT_ZIP_PATH` to a copy of the E2E bundle, `EXPECTED_ZIP_SHA256` to the
+   digest the E2E run printed and `NEW_DATA_PATH` to its `..._new_rows.csv`, and confirm the same checks pass before
+   reconstruction;
 7. verify the exports exist and the interpretation sections match the observed paths;
-8. record the notebook Git blob ids, commit, runtime (platform, Python, PyTorch, tabicl, device), model identifier and immutable
-   revision, whether the model cache was clean, outcome, produced outputs, and any warning or applicable `SHOULD` deviation in the table below;
+8. record the notebook Git blob ids, commit, runtime (platform, Python, PyTorch, tabicl, device), model identifier and
+   immutable revision, whether the model cache was clean, `restarted: false`, outcome, produced outputs and metrics, and any
+   warning or applicable `SHOULD` deviation in the table below;
 9. record no access tokens or other secrets.
 
 A known-failing default path in the supported runtime blocks release.
@@ -111,13 +123,31 @@ they are measurements for the stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-14 | `78312ed` / `9bbb5a682aad` | Kaggle T4 (`kurtvalcorza/dimer-nb2-tabiclv2-regressor` v1) | Default sample path | 206.2 s | **PASSED** — 9/9 ok code cells executed cleanly, 5 files, 114 MB staged |
-| | | | Standalone ARTIFACT-INFERENCE with an external bundle | | pending — queued to the GPU lane |
+| 2026-09-14 | `78312ed` / `9bbb5a682aad` | Kaggle T4 (`kurtvalcorza/dimer-nb2-tabiclv2-regressor` v1) | Default sample path | 206.2 s | **PASSED** — 9/9 ok code cells executed cleanly, 5 files, 114 MB staged (previous E2E blob, superseded; outcome only — no metrics, package versions or `restarted` flag were recorded) |
+| | | Colab T4 | E2E default path of the current blob | | pending — queued to the GPU lane |
+| | | Colab T4 | ARTIFACT-INFERENCE default path (pinned sample bundle) of the current blob | | pending — queued to the GPU lane |
+
+### Local lock-only drives (not clean-runtime evidence)
+
+These ran the notebooks' own code cells in order (nbclient, a separate ipykernel venv) in a Linux x86_64 WSL2 container,
+CPU only (`CUDA_VISIBLE_DEVICES=-1`), with every stage in the environment the notebook itself built from
+`tutorials/requirements-colab.lock.txt` (85 packages, `torch` 2.11.0+cu130, `tabicl` 2.1.1). Two local deviations: the
+pinned checkpoint was pre-seeded into `weights/tabicl-regressor-v2/` after a SHA-256 check (this container's IPv6 route to
+the Hub stalls; the stage then reported `fetched: []` and re-verified it), and `LD_LIBRARY_PATH` pointed at the locked
+`torch/lib` because the container lacks the system `libgomp1` that LightGBM loads (Colab and Kaggle images ship it).
+They are not hosted runs and do not count toward promotion.
+
+| Date (UTC) | Commit / notebook blob | Path exercised | Wall | Outcome |
+|---|---|---|---|---|
+| 2026-10-11 | `2dfd602` / `c74dcd4c08fc` (E2E) | Default sample path; fine-tuning requested and skipped (no CUDA, recorded) | 262 s (environment reused) | 11/11 code cells, no error. Pretrained TabICLv2 holdout MAE 38.83 / RMSE 49.07 / R² 0.582, test MAE 44.78 / R² 0.486; linear 38.22 / 0.581 (test 46.72 / 0.439), random forest 42.28 / 0.495, LightGBM 44.94 / 0.426 (test 47.77 / 0.369), training mean 67.52; TabICLv2 vs linear holdout MSE delta −7.6, paired SE 92.6; blend weight 1.0. Bundle exported (`mode: pretrained`, `matches_pinned_sample_context: True`), fresh-process reload max abs difference 3.1e-05, PASS |
+| 2026-10-11 | `2dfd602` / `a295fc45b289` (companion) | Defaults: carried sample bundle and rows, no upload | 17 s | 9/9 code cells, no error. `trusted_digest` verified, `mode: pretrained`, checkpoint bound to the base digest, 265 context rows; the eight predictions equal the E2E run's to four decimals (182.7016 … 136.1901); report `not-measurable`, `sample_kind: sample` |
+| 2026-10-11 | `2dfd602` / `a295fc45b289` (companion) | The E2E run's ZIP by `ARTIFACT_ZIP_PATH` with its printed `EXPECTED_ZIP_SHA256`, its `..._new_rows.csv` by `NEW_DATA_PATH` | 20 s | 9/9 code cells, no error; `trusted_digest: verified (EXPECTED_ZIP_SHA256)`, checkpoint binding holds |
+| 2026-10-11 | `2dfd602` | The default-path fine-tuning call of `stage_condition` with its exact arguments except `device="cpu"`, `epochs=1` (GPU path not exercised) | 176 s | The locked `tabicl` accepts every argument; `fit(..., X_val, y_val, output_dir)` wrote `best.ckpt` (342,865,633 bytes) and `epoch1.ckpt`; a regressor rebuilt from `best.ckpt` predicts (holdout MAE 38.99) |
 
 ## Current status
 
-No clean-runtime execution of the standalone notebooks has been recorded yet; both runs are **pending** and queued to the
-GPU lane. Static validation (`tools/validate_release_assets.py`), nbformat validation, a `compile()` sweep over every code
+No clean-runtime execution of the current standalone notebook blobs has been recorded yet (the 2026-09-14 Kaggle row is
+the previous E2E blob); both runs are **pending** and queued to the GPU lane. Static validation (`tools/validate_release_assets.py`), nbformat validation, a `compile()` sweep over every code
 cell, and the offline unit suite passed on the tutorial source at the candidate revision, which is necessary but not
 sufficient. The registry status remains **Candidate** until a reviewer confirms a recorded run against the notebook blobs
 under review and an integrator promotes it; promotion is not performed by the builder. Facts a reviewer should weigh:
