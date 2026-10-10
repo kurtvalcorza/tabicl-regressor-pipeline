@@ -564,3 +564,34 @@ def test_m3_sample_kind_follows_the_input_source(tmp_path) -> None:
     run.options = {"source": "sample"}
     with pytest.raises(ValueError, match="The pinned sample rows match only the pinned sample bundle"):
         _quiet(AI_STAGES.stage_rows, run)
+
+
+# ---------------------------------------------------------------- ENV15: no worker, no google.colab stub, no IPython in stages
+
+
+@pytest.mark.parametrize("template", ["notebook_template.py", "notebook_template_artifact_inference.py"])
+def test_stage_processes_import_neither_ipython_nor_google_colab(template: str) -> None:
+    """Stages run in the isolated environment, which has neither IPython nor google.colab: only kernel cells may use them
+    (the upload dialogs). There is no worker and no google.colab stub that would need a ModuleSpec (ENV15). The carried
+    package imports google.colab only inside `read_single_input` / `download_output`, which no stage calls; a module-level
+    import, or a stage calling either helper, would fail on Colab (tabpfn-regressor-pipeline e2d5fab pattern)."""
+    build = _load(f"tir_build_notebook_{template[:-3]}", TOOLS / "build_notebook.py")
+    tpl = _load(f"tir_{template[:-3]}", TOOLS / template).TEMPLATE
+    carried = [ROOT / source for dest, source in build.carried_sources(ROOT, tpl).items() if dest.endswith(".py")]
+    runner = ROOT / tpl["stage_runner"]
+    assert runner in carried and any(p.name == "api.py" for p in carried)
+    offenders = [str(p) for p in carried if re.search(r"^(from|import)\s+(IPython|google)\b", p.read_text(encoding="utf-8"), re.M)]
+    assert not offenders, offenders
+    for p in carried:
+        tree = ast.parse(p.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                names = [a.name for a in node.names] + ([node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
+                if any(n.split(".")[0] in ("IPython", "google") for n in names):
+                    owner = [f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.lineno <= node.lineno <= f.end_lineno]
+                    assert owner and owner[-1].name in {"read_single_input", "download_output"}, (p.name, node.lineno)
+    runner_text = runner.read_text(encoding="utf-8")
+    assert "read_single_input" not in runner_text and "download_output" not in runner_text
+    text = (ROOT / "tutorials" / tpl["notebook_name"]).read_text(encoding="utf-8")
+    assert "sys.modules['google" not in text and 'sys.modules[\\"google' not in text and "_WORKER_SOURCE" not in text
+    assert "IPython" not in text

@@ -14,7 +14,7 @@
 
 ## Release status
 
-**Candidate.** Static/unit checks do not constitute clean-runtime notebook evidence. The previous repository-installing pair was executed by CI through real kernels; the standalone pair has not been executed yet. Complete `docs/release-verification.md` against the exact release revision before calling either notebook release-grade.
+**Candidate.** Static/unit checks do not constitute clean-runtime notebook evidence. The previous repository-installing pair was executed by CI through real kernels. Of the standalone pair, only an earlier E2E blob (`9bbb5a68`) has a hosted run (Kaggle T4, 2026-09-14, outcome only); the current blobs of both notebooks have no hosted run yet. Complete `docs/release-verification.md` against the exact release revision before calling either notebook release-grade.
 
 ## The model: TabICLv2
 
