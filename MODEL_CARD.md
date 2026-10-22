@@ -45,11 +45,7 @@ Both pipeline implementations provide ready-to-run interactive Google Colab note
 
 - **End-to-End Pipeline Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb) [`tabiclv2_regressor_colab.ipynb`](https://github.com/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_colab.ipynb)  
-  *Acquire the pinned TabICLv2 regression checkpoint, validate your own labelled table, evaluate in-context regression on a held-out split, optionally fine-tune on a GPU, and export a `tabicl-dimer-regressor-v1` serving artifact.*
-
-- **Serving Artifact Inference Tutorial**:  
-  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb) [`tabiclv2_regressor_artifact_inference_colab.ipynb`](https://github.com/kurtvalcorza/tabicl-regressor-pipeline/blob/main/tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb)  
-  *Validate an externally supplied `tabicl-dimer-regressor-v1` serving artifact, reconstruct its in-context state, and predict continuous values for new rows with no gradient fine-tuning.*
+  *Acquire the pinned TabICLv2 regression checkpoint, validate your own labelled table, evaluate in-context regression on a held-out split, optionally fine-tune on a GPU, and export a `tabicl-dimer-regressor-v1` serving artifact. Its closing section loads a pinned serving artifact made by an earlier recorded run, verifies it before deserialization, rebuilds the in-context estimator and predicts continuous values for new rows (this replaced the separate artifact-inference tutorial under Notebook Spec 3.0).*
 
 > [!NOTE]
 > The default in-context path runs on any Colab runtime (pretrained evaluation completes on CPU in seconds on the sample). A GPU runtime is needed only when `RUN_FINE_TUNING` is switched on; fine-tuning is optional and, on the shipped sample, does not improve on the in-context baseline.

@@ -1,0 +1,16 @@
+LICENSE
+README.md
+pyproject.toml
+src/tabicl_regressor_pipeline/__init__.py
+src/tabicl_regressor_pipeline/api.py
+src/tabicl_regressor_pipeline.egg-info/PKG-INFO
+src/tabicl_regressor_pipeline.egg-info/SOURCES.txt
+src/tabicl_regressor_pipeline.egg-info/dependency_links.txt
+src/tabicl_regressor_pipeline.egg-info/requires.txt
+src/tabicl_regressor_pipeline.egg-info/top_level.txt
+tests/test_external_artifact_section.py
+tests/test_notebook_parity.py
+tests/test_notebook_review_fixes.py
+tests/test_role_helpers.py
+tests/test_snapshot_helpers.py
+tests/test_weight_facts.py
