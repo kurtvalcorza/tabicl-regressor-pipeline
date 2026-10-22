@@ -14,8 +14,8 @@ by a script that ran no model, so it could not meet SART9). The section's defaul
 T4 run of `6b95e73` (the default diabetes path, pretrained mode), written by that revision's `shutil.make_archive`; its digest
 is pinned as published (SART8). From this change on, the export stage writes a deterministic ZIP (sorted members, fixed
 1980-01-01 timestamps, mode 0644, atomic rename), so an export's digest depends only on its contents. The section's own hosted
-evidence needs a run of the migrated notebook revision with that pin (the second pass of §32.2); until it is recorded here,
-the migrated notebook stays Candidate. Text below that describes the companion, its sample bundle or both notebooks describes
+evidence with that pin (the second pass of §32.2) is the `1e1a1ab` record below (*First hosted run of the migrated
+notebook*); the notebook stays Candidate for the reasons under *Current status*. Text below that describes the companion, its sample bundle or both notebooks describes
 revisions before the fold and is kept as history (REL14); the companion's execution evidence is not evidence for the migrated
 notebook.
 
@@ -210,9 +210,25 @@ Where this document quotes one of these files' earlier hash as its committed has
 given beside it.
 
 
+## SART7 deviation (2026-10-22)
+
+- **Tag:** `sample-artifact-diabetes-v1` (asset `tabiclv2_regressor_artifact.zip`).
+- **Mutable release:** the GitHub release is not immutable (`gh api repos/kurtvalcorza/tabicl-regressor-pipeline/releases/tags/sample-artifact-diabetes-v1 --jq .immutable` returns `false`), so SART7 (SHOULD) is not met.
+- **Pinned digest:** the notebook pins the asset by `SAMPLE_ARTIFACT_SHA256 = "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828"` (`tools/tutorial_stages.py`, carried into the notebook); the GitHub asset digest is the same value.
+- **Integrity:** integrity rests on that pinned SHA-256 check. `fetch_pinned_artifact` hashes the downloaded file with `check_trusted_digest` and refuses it before extraction if the digest differs, so a replaced asset is refused, not used.
+- **Owner acceptance:** the owner accepted this deviation on 2026-10-22. The release is not re-tagged and the pin is not changed.
+
 ## Current status
 
-**2026-10-10 — one-pass hosted runs of both current blobs are recorded** (the 2026-10-10 rows of the clean-runtime table): `tabiclv2_regressor_colab.ipynb` (`c74dcd4c08fc`) and `tabiclv2_regressor_artifact_inference_colab.ipynb` (`a295fc45b289`) at `fe7596f`, each by Colab CLI 0.7.4 sequential execution on a fresh Colab Tesla T4 (not a browser Run all), no restart, 0 error outputs. Notes for the reviewer: (a) the CUDA fine-tune ran (3 epochs / 300 s requested), stopped early in about 3.5 s, and the pretrained model won on holdout MAE — the export and reload path of the 342,875,297-byte fine-tuned checkpoint was **not** exercised on GPU (follow-up); (b) the companion's predictions match the E2E run's within 1e-4 (5/8 exact; rows 285, 349 and 331 differ by 0.0001), consistent with the stated device floating-point contract; (c) the fine-tuner prints its validation MAE negated (`Baseline val mae: -38.6600`) — cosmetic, follow-up; (d) both carried revision labels read `453066a` (generation-time HEAD, not `fe7596f`) — follow-up; (e) the optional activity was not run; (f) the maintainer accepted the carried, offline-built sample (no release; BSD-3, no weights; CPU cross-check recorded) and keeping the bounded CUDA fine-tune on by default. Both notebooks stay **Candidate**; remaining gates: reviewer confirmation of these runs, the fine-tuned-export path, the BYOD journeys and the optional activities.
+**Current status (2026-10-22): Candidate.** The current E2E notebook blob is `8cb91a8e` (`tutorials/tabiclv2_regressor_colab.ipynb` at `1e1a1ab`, unchanged on `main` at `28d00c5`). Its default path has one recorded hosted run of this blob: the `1e1a1ab` record (*First hosted run of the migrated notebook*, near the top of this file), evidence in `execution-evidence/2026-10-22-1e1a1ab/`. It ran by Colab CLI `colab exec -f` (scripted, not a browser Run all) on a fresh Colab Tesla T4: exit 0, 14/14 code cells, 0 error outputs, 157.4 s, input unchanged, verdict PASS. In that run the bounded CUDA fine-tune ran and the pretrained model was recommended for export (selection on holdout MAE), so the fine-tuned-checkpoint export path was again not exercised; the export reloaded in a fresh process (PASS, max abs prediction difference 1.5e-05); and Section 10 verified the pinned `sample-artifact-diabetes-v1` asset (`3cd5abc8…`) before extraction. The notebook stays **Candidate** until these are recorded for this blob:
+
+- **REL12:** a BYOD run in which one representative input is accepted through the downstream stages and one incompatible input is refused;
+- **REL2:** a browser run of the interactive journeys (BYOD upload dialog, optional-activity toggle, own-artifact ZIP); the scripted CLI run counts for the default path only;
+- **Optional activity:** a run of the Section 11 ensemble-size activity (`RUN_ACTIVITY`); the `1e1a1ab` run printed "Optional activity skipped". The owner ruled on 2026-10-22 that it must be run before promotion.
+
+Promotion is an integrator decision; the builder does not change the status.
+
+**History, 2026-10-10 (blobs `c74dcd4c08fc` and `a295fc45b289`, both superseded; not evidence for the current blob, REL14) — one-pass hosted runs of both then-current blobs were recorded** (the 2026-10-10 rows of the clean-runtime table): `tabiclv2_regressor_colab.ipynb` (`c74dcd4c08fc`) and `tabiclv2_regressor_artifact_inference_colab.ipynb` (`a295fc45b289`) at `fe7596f`, each by Colab CLI 0.7.4 sequential execution on a fresh Colab Tesla T4 (not a browser Run all), no restart, 0 error outputs. Notes for the reviewer: (a) the CUDA fine-tune ran (3 epochs / 300 s requested), stopped early in about 3.5 s, and the pretrained model won on holdout MAE — the export and reload path of the 342,875,297-byte fine-tuned checkpoint was **not** exercised on GPU (follow-up); (b) the companion's predictions match the E2E run's within 1e-4 (5/8 exact; rows 285, 349 and 331 differ by 0.0001), consistent with the stated device floating-point contract; (c) the fine-tuner prints its validation MAE negated (`Baseline val mae: -38.6600`) — cosmetic, follow-up; (d) both carried revision labels read `453066a` (generation-time HEAD, not `fe7596f`) — follow-up; (e) the optional activity was not run; (f) the maintainer accepted the carried, offline-built sample (no release; BSD-3, no weights; CPU cross-check recorded) and keeping the bounded CUDA fine-tune on by default. Both notebooks stayed **Candidate**; the gates then remaining were reviewer confirmation of these runs, the fine-tuned-export path, the BYOD journeys and the optional activities.
 
 Before 2026-10-10: no clean-runtime execution of the current standalone notebook blobs had been recorded (the 2026-09-14 Kaggle row is
 the previous E2E blob). Static validation (`tools/validate_release_assets.py`), nbformat validation, a `compile()` sweep over every code
