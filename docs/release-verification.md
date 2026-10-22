@@ -1,14 +1,64 @@
 # Release verification
 
-`tutorials/tabiclv2_regressor_colab.ipynb` (`E2E`) and `tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb`
-(`ARTIFACT-INFERENCE`) are **release candidates** until the exact notebook revisions have executed top-to-bottom in a
-clean supported runtime. Unit tests, JSON validation, code-cell compilation, and `tools/validate_release_assets.py` are
-necessary checks but are **not** runtime evidence under DIMER Notebook Specification 2.2. This file is the durable
-release-gate record for both notebooks.
+`tutorials/tabiclv2_regressor_colab.ipynb` (`E2E`) is a **release candidate** until the exact notebook revision has
+executed top-to-bottom in a clean supported runtime. Unit tests, JSON validation, code-cell compilation, and
+`tools/validate_release_assets.py` are necessary checks but are **not** runtime evidence under DIMER Notebook
+Specification 3.0. This file is the durable release-gate record.
+
+**Notebook Spec 3.0 fold (2026-10-22).** The notebook now declares Notebook Spec 3.0 (kind `TUTORIAL`) and closes with the
+external-artifact section (Section 10, §19.1). The artifact-inference companion
+`tutorials/tabiclv2_regressor_artifact_inference_colab.ipynb`, its template, its stage runner, `tests/test_companion_parity.py`,
+`tools/build_sample_bundle.py` and the sample bundle `examples/sample-bundle/` were deleted (KND11; the bundle was assembled
+by a script that ran no model, so it could not meet SART9). The section's default artifact is the release asset
+`tabiclv2_regressor_artifact.zip` of tag `sample-artifact-diabetes-v1` (SHA-256 `3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828`): the export of the recorded hosted
+T4 run of `6b95e73` (the default diabetes path, pretrained mode), written by that revision's `shutil.make_archive`; its digest
+is pinned as published (SART8). From this change on, the export stage writes a deterministic ZIP (sorted members, fixed
+1980-01-01 timestamps, mode 0644, atomic rename), so an export's digest depends only on its contents. The section's own hosted
+evidence needs a run of the migrated notebook revision with that pin (the second pass of §32.2); until it is recorded here,
+the migrated notebook stays Candidate. Text below that describes the companion, its sample bundle or both notebooks describes
+revisions before the fold and is kept as history (REL14); the companion's execution evidence is not evidence for the migrated
+notebook.
+
+**Producing run of the sample artifact (hosted Colab T4, 2026-10-22, `6b95e73` / blob `c74dcd4c08fc`).** The default path of
+`tutorials/tabiclv2_regressor_colab.ipynb` at `main` `6b95e73` (blob `c74dcd4c08fc`, the pre-fold notebook), run by the Colab CLI
+(`colab exec -f`, 0.7.4) on a fresh hosted T4 session, started 2026-10-22T01:18:36Z, wall 156.8 s, exit 0, input unchanged,
+11/11 code cells, verdict PASS. Evidence: [`execution-evidence/2026-10-22-6b95e73/`](execution-evidence/2026-10-22-6b95e73/).
+Its export `outputs/tabiclv2_regressor_artifact.zip` (printed `zip_sha256` `3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828`,
+mode `pretrained`) is published unchanged as the release asset of tag `sample-artifact-diabetes-v1` (target `6b95e73`), whose
+notes name this run (SART8). It is the pinned default artifact of the external-artifact section (Section 10); it is not evidence
+for the migrated notebook, which needs its own hosted run.
+
+**Local-path redaction of the producing-run evidence.** Local paths were replaced by `<local-run-dir>` before the first commit.
+The artifact ZIP is not committed here; it is the release asset.
+
+| File (under `execution-evidence/2026-10-22-6b95e73/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4.ipynb` | `f5298ad6eebe8437e7e253339f0dfa7760bbcbff794b88797d3faa67978fca59` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_exec.log` | `7d7eb14bcfadd0c683366c13ef2186e18cff386d28fad6fa52df8af12be7822b` | `93ddf0cdfed6bd7c2f35690a6d3a1310d976ff3bd37fbcd0ef61231604f0d3dd` |
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_run_summary.json` | `c404d2f936c432d6ed6469dfb297c39d06414e77f713ef72bd85fdf7d1cf4f54` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_suite.log` | `0ac330d193b0b964094aad21dc8954ea1a8aa7f562ebcd326bdba4f4f4db6c7f` | `277e3ac78da430cde69c13dc29b9c820665e549cf22fc7d4fd99155b803d0e79` |
+
+**First hosted run of the migrated notebook (hosted Colab T4, 2026-10-22, `1e1a1ab` / blob `8cb91a8e`, Notebook Spec 3.0).**
+The default path of the folded E2E notebook on PR #29, run by the Colab CLI (`colab exec -f`) on a fresh hosted T4 session,
+started 2026-10-22T02:09:26Z, wall 157.4 s, exit 0, input unchanged; executed cell sources equal blob `8cb91a8e` (44 cells),
+verdict PASS. Evidence: [`execution-evidence/2026-10-22-1e1a1ab/`](execution-evidence/2026-10-22-1e1a1ab/). This is the second
+pass of §32.2. **Section 10 ran end to end on the default path:** it downloaded the release asset of tag
+`sample-artifact-diabetes-v1`, verified SHA-256 `3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828` before
+extraction, rebuilt the regressor from the files alone (the `external_reconstruct` stage completed on the hosted runtime) and
+wrote `outputs/external_artifact/tabiclv2_regressor_external_predictions.csv` and `..._external_result.json` (printed in the
+executed notebook; the files stayed on the released VM). The run's own deterministic export printed `zip_sha256`
+`fc2e628a776732cecaf91c8f670d566bd83df661367e6376dee0104b412ed059`.
+
+| File (under `execution-evidence/2026-10-22-1e1a1ab/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4.ipynb` | `c1902e839b04591783fb85e9b42a4fefd5972936037a69c7c85392d710b72188` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_run_summary.json` | `82935a004266d33a7daf056cefd1d84bdc219baa6d479f8d53ec97c34f8a76ba` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_exec.log` | `6ff20606618f0e9fb5855baefcc9e7da0de1b3ce147fd49d09ff87d722d60d42` | `4992c2a9dd9b413db67d55da3ebb9142c6b74a41195fdebc12f22bba548b228c` (2 replacements) |
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_suite.log` | `b32d73b34aec174b6a6c8d74305005ab23654328d8e353b8c912c5bfc84cdcc6` | `a276bc9b7b44abbcbd38b5293814305a0af70b68d9fadd41f6ff297e162464f9` (4 replacements) |
 
 ## Automatic coverage (static, every pull request)
 
-CI runs `tools/validate_release_assets.py`, which checks, for each of the two notebooks:
+CI runs `tools/validate_release_assets.py`, which checks the notebook (the companion-specific items below applied before the Notebook Spec 3.0 fold; the same checks now bind the external-artifact section, plus the exact pinned URL and digest, the digest check before extraction, the SART10 contract check, the `outputs/external_artifact/` exports and the deterministic export):
 
 - notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no persisted outputs or
   execution counts; no unresolved placeholder markers; every code cell is preceded by an explanatory markdown cell;
@@ -58,12 +108,12 @@ CI runs `tools/validate_release_assets.py`, which checks, for each of the two no
   unsupported release-grade, production-readiness or benchmark claim;
 - `MODEL_CARD.md` front matter, single H1, required heading order, and the `## Checkpoint Provenance` section.
 
-CI also runs `ruff`, `tools/build_notebook.py --check` for both templates, `scripts/validate_colab_tutorial.py` (the
+CI also runs `ruff`, `tools/build_notebook.py --check`, `scripts/validate_colab_tutorial.py` (the
 repository's own checks: exact build backend, release lock files and their agreement with the pins, the carried hash lock,
 the fine-tune gate and its bounds, hardening markers), the two `scripts/test_*.py` suites and the offline
-unit suite (`tests/`: snapshot, role and weight-fact helpers, `test_notebook_parity.py`, `test_companion_parity.py`, and
+unit suite (`tests/`: snapshot, role and weight-fact helpers, `test_notebook_parity.py`, `test_external_artifact_section.py`, and
 `test_notebook_review_fixes.py`, which execs the notebooks' own cells with stand-ins and runs the model-free stages; no
-weights, no model). `tools/build_sample_bundle.py --check` reproduces `examples/sample-bundle/` byte for byte. These are
+weights, no model). These are
 source/provenance and unit checks. They are **not** execution evidence.
 
 ## Executor paths
@@ -98,13 +148,13 @@ Before changing the registry status from `Candidate` to `Release-grade`:
    - `outputs/tabiclv2_regressor_evaluation_report.json` with verdict `sample-sanity`;
    - eight held-out rows scored into `outputs/tabiclv2_regressor_predictions.csv`, and their unlabelled copy
      `outputs/tabiclv2_regressor_new_rows.csv`;
-   - the bundle `outputs/tabiclv2_regressor_artifact.zip` written with its SHA-256 printed and
-     `matches_pinned_sample_context` reported, reloaded in a fresh process with equivalent predictions;
-6. in a **second** clean runtime, run the exact companion notebook revision with its defaults (the pinned sample bundle and
-   rows; no upload) and confirm `trusted_digest: verified`, `mode: pretrained`, the checkpoint binding, 265 context rows, and
-   the `not-measurable` report; then set `ARTIFACT_ZIP_PATH` to a copy of the E2E bundle, `EXPECTED_ZIP_SHA256` to the
-   digest the E2E run printed and `NEW_DATA_PATH` to its `..._new_rows.csv`, and confirm the same checks pass before
-   reconstruction;
+   - the bundle `outputs/tabiclv2_regressor_artifact.zip` written with its SHA-256 printed, reloaded in a fresh process
+     with equivalent predictions;
+6. in the same run, confirm the closing external-artifact section (Section 10): the pinned URL and SHA-256 printed before the
+   download, `trusted_digest: verified (pinned SAMPLE_ARTIFACT_SHA256)`, `zip_sha256` `3cd5abc8…`, `mode: pretrained` with the
+   checkpoint bound to the base, `data_contract` matching the diabetes default path, 265 context rows, eight diabetes
+   holdout rows scored, and `outputs/external_artifact/tabiclv2_regressor_external_predictions.csv` and
+   `..._external_result.json` written. A tampered or wrong pin must stop the run before extraction;
 7. verify the exports exist and the interpretation sections match the observed paths;
 8. record the notebook Git blob ids, commit, runtime (platform, Python, PyTorch, tabicl, device), model identifier and
    immutable revision, whether the model cache was clean, `restarted: false`, outcome, produced outputs and metrics, and any

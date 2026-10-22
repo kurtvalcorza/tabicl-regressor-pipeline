@@ -1,4 +1,4 @@
-"""Stage runner for the standalone TabICLv2 regressor E2E tutorial (NOTEBOOK_SPEC 2.2 §25.13 isolated-environment pattern).
+"""Stage runner for the standalone TabICLv2 regressor E2E tutorial (NOTEBOOK_SPEC 3.0 §25.13 isolated-environment pattern).
 
 The tutorial notebook carries this file verbatim (as ``tutorial_stages.py`` in its run directory, beside the carried
 package under ``src/``) and runs every stage with the interpreter of an isolated, hash-locked environment::
@@ -11,7 +11,10 @@ verified checkpoint under ``--weights``, the partitions, encoders and records of
 support rows and is repeated by every stage that needs the model; a fine-tuned candidate is kept as a checkpoint file.
 On failure a stage writes ``RUN_DIR/state/<stage>.error.json``, which the notebook re-raises in the kernel.
 
-Stages: weights → data → validate → condition → report → predict → export → reload, plus the optional ``activity``.
+Stages: weights → data → validate → condition → report → predict → export → reload, then the closing external-artifact
+section (NOTEBOOK_SPEC 3.0 §19.1) external_artifact → external_reconstruct → external_predict, plus the optional
+``activity``. The external-artifact stages load the pinned sample artifact (a release asset produced by a recorded
+earlier run of this notebook, pinned by URL and SHA-256), never this run's export, and read none of the main path's state.
 The ``data`` and ``validate`` stages import no model library, so CI exercises them directly.
 """
 # ruff: noqa: E501  -- the printed dictionaries are the learner-facing output; they are kept on one line each
@@ -22,6 +25,8 @@ import hashlib
 import importlib
 import json
 import math
+import os
+import re
 import shutil
 import sys
 import traceback
@@ -42,7 +47,26 @@ MAX_BLANK_TARGET_SHARE = 0.2  # more blank targets than this share of a file is 
 THOUSANDS = r"^[+-]?\d{1,3}(,\d{3})+(\.\d+)?$"
 FINE_TUNE = {"epochs": 3, "time_limit": 300, "patience": 2, "eval_metric": "mae"}
 MIN_SELECTION_HOLDOUT_ROWS = 50
-SAMPLE_BUNDLE_RECORD = "sample-bundle/SAMPLE_BUNDLE.json"  # carried: the pinned sample bundle's provenance
+ZIP_DATE_TIME = (1980, 1, 1, 0, 0, 0)  # every export member gets this timestamp, so the ZIP digest depends only on content
+
+# --- External-artifact section (NOTEBOOK_SPEC 3.0 §19.1, XAS1–XAS7, SART1–SART11) ---------------------------------------
+# The default artifact of the closing section is a release asset of this repository: the export
+# (`outputs/tabiclv2_regressor_artifact.zip`) of a recorded earlier hosted run of this notebook's default path (SART8,
+# SART9). It is pinned by URL and SHA-256 and never replaced; a changed artifact gets a new tag and a new pin (SART7,
+# SART11). The export of the current run is never used as the external artifact (XAS2).
+SAMPLE_ARTIFACT_TAG = "sample-artifact-diabetes-v1"
+SAMPLE_ARTIFACT_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip"  # literal: validators allow only this exact URL
+SAMPLE_ARTIFACT_SHA256 = "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828"
+SAMPLE_ARTIFACT_PRODUCER = {
+    "notebook": "tutorials/tabiclv2_regressor_colab.ipynb (default path: Sample: Diabetes)",
+    "commit": "6b95e73f4f87456c825128418073d4f8293355f2",
+    "run": "recorded hosted Colab T4 run; the release notes of the tag name the run record (SART8)",
+    "release_tag": SAMPLE_ARTIFACT_TAG,
+}
+SAMPLE_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024  # a download larger than this is refused before it is hashed or opened
+EXTERNAL_DIR = "external_artifact"  # under outputs/: the section's predictions and provenance (XAS6)
+EXTERNAL_SAMPLE_ROWS = 8
+SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 
 class Run:
@@ -95,6 +119,15 @@ def package(root: Path):
 
 def sha256_file(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def atomic_write_json(path: Path, value: Any) -> Path:
+    """Write JSON to a temporary sibling, then rename it into place, so a reader never sees a half-written file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(value, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    os.replace(tmp, path)
+    return path
 
 
 def rounded(value: Any, digits: int = 4) -> Any:
@@ -540,7 +573,7 @@ def runtime_versions(device: str) -> dict[str, Any]:
 
 def new_rows_frame(run: Run, enc: dict):
     """The first eight holdout rows (raw features, unlabelled) with their original row id: the default new-data input
-    and the companion notebook's sample rows (TIR-S2)."""
+    (TIR-S2)."""
     raw = run.read_frame("holdout_raw.parquet", "new rows").reset_index(drop=True)
     rows = raw[enc["features"]].head(NEW_ROWS).copy()
     rows.insert(0, "row_id", enc["holdout_row_ids"][: len(rows)])
@@ -604,7 +637,7 @@ def stage_predict(run: Run) -> None:
 
 
 def build_manifest(P, *, enc: dict, mode: str, selection: str, metrics: dict | None, n_estimators: int, checkpoint: Path | None, context: Path, runtime: dict, source: dict, checkpoint_facts: tuple[str, int] | None = None) -> dict[str, Any]:
-    """The bundle manifest: the E2E export and tools/build_sample_bundle.py share this function."""
+    """The bundle manifest written by the export stage."""
     return {
         "artifactFormat": P.ARTIFACT_FORMAT,
         "checkpoint": "checkpoints/best.ckpt",
@@ -625,6 +658,27 @@ def build_manifest(P, *, enc: dict, mode: str, selection: str, metrics: dict | N
         "runtime": runtime,
         "notebookSource": source,
     }
+
+
+def deterministic_zip(root: Path, archive: Path) -> Path:
+    """Write every file under ``root`` to ``archive`` in sorted order with a fixed timestamp and mode, atomically.
+
+    ``shutil.make_archive`` stamps members with their file-system mtimes, so two runs that write identical members still
+    print different ZIP digests. Here the digest depends only on the member names and bytes.
+    """
+    import zipfile
+
+    files = sorted(p for p in root.rglob("*") if p.is_file())
+    tmp = archive.with_name(archive.name + ".tmp")
+    with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for path in files:
+            info = zipfile.ZipInfo(path.relative_to(root).as_posix(), date_time=ZIP_DATE_TIME)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            with path.open("rb") as source, zf.open(info, "w", force_zip64=True) as target:
+                shutil.copyfileobj(source, target, 1024 * 1024)
+    os.replace(tmp, archive)
+    return archive
 
 
 def stage_export(run: Run) -> None:
@@ -651,7 +705,7 @@ def stage_export(run: Run) -> None:
     metrics = {"selectionMetric": cond["eval_metric"], "pretrainedHoldout": cond["pretrained_holdout"], "fineTunedHoldout": cond["candidate_holdout"], "pretrainedIndependentTest": cond["pretrained_test"], "fineTunedIndependentTest": cond["candidate_test"]}
     manifest = build_manifest(P, enc=enc, mode=cond["active_mode"], selection=cond["selection"], metrics=metrics, n_estimators=model.n_estimators, checkpoint=ckpt, context=context, runtime=runtime, source=source)
     (art / "artifact.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    archive = Path(shutil.make_archive(str(run.out / f"{STEM}_artifact"), "zip", root_dir=art))
+    archive = deterministic_zip(art, run.out / f"{STEM}_artifact.zip")
     smoke = holdout[enc["features"]].iloc[: min(NEW_ROWS, len(holdout))]
     run.write_state("export_reference.json", {"predictions": numpy.asarray(model.predict(smoke), dtype=float).tolist(), "device": model.device})
     digest = sha256_file(archive)
@@ -661,13 +715,8 @@ def stage_export(run: Run) -> None:
         result["artifact"] = {"zip": archive.name, "zip_sha256": digest, "manifest": manifest}
         run.write_output(result_path.name, result)
     record = {"artifact_zip": str(archive), "zip_sha256": digest, "mode": cond["active_mode"], "checkpoint_bytes": ckpt.stat().st_size, "training_context_sha256": manifest["digests"]["trainingContextSha256"]}
-    sample = run.root / SAMPLE_BUNDLE_RECORD
-    data = run.read_state("data.json", "export")
-    if data["source"] == "Sample: Diabetes" and sample.is_file():
-        pinned = json.loads(sample.read_text(encoding="utf-8"))
-        record["matches_pinned_sample_context"] = manifest["digests"]["trainingContextSha256"] == pinned["files"]["training_context.parquet"]["sha256"]
     print(record)
-    print(f"Trusted digest for the companion notebook: set EXPECTED_ZIP_SHA256 = '{digest}' when you hand it {archive.name}.")
+    print(f"Trusted digest of this export: whoever loads {archive.name} elsewhere checks it against '{digest}' (EXPECTED_ZIP_SHA256 in Section 10). Section 10 itself never loads this run's export; it loads the pinned sample artifact.")
 
 
 def stage_reload(run: Run) -> None:
@@ -726,6 +775,262 @@ def stage_activity(run: Run) -> None:
     print({"canonical_outputs_unchanged": True})
 
 
+# --- External-artifact section (§19.1): stages external_artifact → external_reconstruct → external_predict ---------------
+# These stages read only the carried files, the run directory's own `inputs/` cache and their own state; they never read
+# a file that the data, validate, condition, report, predict, export or reload stages wrote (XAS5).
+
+
+def check_trusted_digest(path: Path, expected: str, field: str) -> str:
+    """Refuse a file whose SHA-256 is not ``expected``; nothing is extracted or deserialised before this passes."""
+    expected = str(expected).strip().lower()
+    if not SHA256_HEX.match(expected):
+        raise ValueError(f"{field} must be 64 hexadecimal characters (the digest the producer published with the artifact), got {expected!r}.")
+    observed = sha256_file(path)
+    if observed != expected:
+        raise ValueError(f"Trusted digest mismatch for {path.name}: {field} is {expected}, the file's SHA-256 is {observed}. This is not the artifact the digest was issued for; nothing was extracted. Obtain the artifact and its digest from the producer again.")
+    return observed
+
+
+def fetch_pinned_artifact(cache: Path, url: str, expected: str) -> Path:
+    """The pinned sample artifact: reused from ``cache`` when its digest matches, else downloaded (no authentication),
+    size-capped, and accepted only at the pinned SHA-256. The digest is checked before anything opens the file."""
+    if cache.is_file() and sha256_file(cache) == expected:
+        return cache
+    import urllib.request
+
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    part = cache.with_name(cache.name + ".part")
+    size = 0
+    with urllib.request.urlopen(url, timeout=120) as response, part.open("wb") as out:
+        while chunk := response.read(1024 * 1024):
+            size += len(chunk)
+            if size > SAMPLE_ARTIFACT_MAX_BYTES:
+                out.close()
+                part.unlink(missing_ok=True)
+                raise ValueError(f"The pinned sample artifact at {url} exceeds {SAMPLE_ARTIFACT_MAX_BYTES} bytes: refused before hashing or extraction.")
+            out.write(chunk)
+    try:
+        check_trusted_digest(part, expected, "the pinned SAMPLE_ARTIFACT_SHA256")
+    except ValueError:
+        part.unlink(missing_ok=True)
+        raise
+    os.replace(part, cache)
+    return cache
+
+
+def check_bundle_identity(P, manifest: dict[str, Any]) -> dict[str, Any]:
+    """The manifest must declare the pinned base checkpoint; a ``pretrained`` bundle's checkpoint must BE that base
+    checkpoint (``digests.checkpointSha256 == BASE_MODEL_SHA256``), so a swapped, code-capable checkpoint behind a
+    re-hashed manifest is refused (TIRA-m2). A ``fine-tuned`` checkpoint is a derivative bound only by the bundle's own
+    digests and the trusted ZIP digest."""
+    declared = (manifest.get("baseCheckpoint"), manifest.get("baseModelRevision"), manifest.get("baseModelSha256"))
+    if declared != (P.BASE_CHECKPOINT_NAME, P.MODEL_REVISION, P.BASE_MODEL_SHA256):
+        raise RuntimeError(f"Artifact was not produced on the pinned base checkpoint carried by this notebook: declares {declared}, expected {(P.BASE_CHECKPOINT_NAME, P.MODEL_REVISION, P.BASE_MODEL_SHA256)}.")
+    mode = manifest.get("mode")
+    checkpoint_sha = (manifest.get("digests") or {}).get("checkpointSha256")
+    if mode == "pretrained":
+        if checkpoint_sha != P.BASE_MODEL_SHA256:
+            raise RuntimeError(f"The artifact declares mode 'pretrained', so its checkpoint must be the pinned base checkpoint with SHA-256 {P.BASE_MODEL_SHA256}; its manifest records {checkpoint_sha}. Refusing to load a different checkpoint.")
+        return {"mode": mode, "checkpoint_binding": "identical to the pinned base checkpoint (SHA-256 checked)"}
+    if mode == "fine-tuned":
+        return {"mode": mode, "checkpoint_binding": "fine-tuned derivative of the pinned base; bound by the manifest digest and the trusted ZIP digest"}
+    raise RuntimeError(f"Unsupported artifact mode {mode!r}: expected 'pretrained' or 'fine-tuned'.")
+
+
+def check_numeric_features(name: str, rows, features: list[str], encoders: dict[str, Any]):
+    """Columns the producer treated as numeric (no fitted encoder) must hold numbers; refuse naming the column and the
+    first bad values (TIRA-m3), instead of handing strings to the model."""
+    import pandas as pd
+
+    out = rows.copy()
+    for column in features:
+        if column in encoders:
+            continue
+        original = out[column]
+        converted = pd.to_numeric(original, errors="coerce")
+        bad = original.notna() & converted.isna()
+        if bad.any():
+            examples = original[bad].astype(str).unique().tolist()[:5]
+            raise ValueError(f"{name}: numeric feature {column!r} has {int(bad.sum())} non-numeric value(s), e.g. {examples}. Fix them (leave missing cells empty).")
+        out[column] = converted
+    return out
+
+
+def diabetes_frame():
+    """The default path's table, scikit-learn's bundled diabetes data (no download), with the target named ``target``."""
+    from sklearn.datasets import load_diabetes
+
+    dataset = load_diabetes(as_frame=True)
+    return dataset.frame.rename(columns={dataset.target.name: "target"})
+
+
+def diabetes_contract() -> dict[str, Any]:
+    """The data contract of the current default path (``Sample: Diabetes``): its feature columns and its target."""
+    frame = diabetes_frame()
+    return {"task": "regression", "featureColumns": [c for c in frame.columns if c != "target"], "targetColumn": "target"}
+
+
+def check_data_contract(manifest: dict[str, Any], contract: dict[str, Any]) -> None:
+    """SART10: the artifact must follow the current default path's features and target, or it is refused."""
+    for key in ("featureColumns", "targetColumn"):
+        if manifest.get(key) != contract[key]:
+            raise RuntimeError(f"The artifact does not follow this notebook's default data contract (SART10): its {key} is {manifest.get(key)!r}, the diabetes default path's is {contract[key]!r}. A sample artifact built from another dataset or an earlier default is refused even when its digest verifies.")
+
+
+def external_out(run: Run) -> Path:
+    return run.out / EXTERNAL_DIR
+
+
+def stage_external_artifact(run: Run) -> None:
+    import importlib.metadata
+
+    import pandas as pd
+    import torch
+
+    P = package(run.root)
+    opts = run.options
+    source = opts.get("source", "pinned")
+    shutil.rmtree(external_out(run), ignore_errors=True)  # a failed check leaves no earlier success record behind (VER6)
+    (run.state / "external_artifact.json").unlink(missing_ok=True)
+    bundle = run.state / "external_bundle"
+    shutil.rmtree(bundle, ignore_errors=True)
+    if source == "pinned":
+        # SART3: provenance, format and integrity mechanism, stated before anything is downloaded or deserialised.
+        print({"artifact": "pinned sample artifact (created outside this run)", "url": SAMPLE_ARTIFACT_URL, "pinned_sha256": SAMPLE_ARTIFACT_SHA256, "producer": SAMPLE_ARTIFACT_PRODUCER, "format": P.ARTIFACT_FORMAT, "integrity": "SHA-256 of the whole ZIP, checked before extraction; then per-member sizes and digests from artifact.json"})
+        zip_path = fetch_pinned_artifact(run.root / "inputs" / "external_artifact.zip", SAMPLE_ARTIFACT_URL, SAMPLE_ARTIFACT_SHA256)
+        trust = {"trusted_digest": "verified (pinned SAMPLE_ARTIFACT_SHA256)", "zip_sha256": SAMPLE_ARTIFACT_SHA256, "url": SAMPLE_ARTIFACT_URL, "producer": SAMPLE_ARTIFACT_PRODUCER}
+    elif source == "own":
+        zip_path = Path(opts.get("zip_path") or "")
+        if not str(zip_path) or not zip_path.is_file():
+            raise FileNotFoundError(f"ARTIFACT_ZIP_PATH {str(zip_path)!r} is not a file in this runtime: point it at the artifact ZIP you were given.")
+        expected = str(opts.get("expected_zip_sha256") or "")
+        if expected:
+            trust = {"trusted_digest": "verified (EXPECTED_ZIP_SHA256)", "zip_sha256": check_trusted_digest(zip_path, expected, "EXPECTED_ZIP_SHA256")}
+        else:
+            trust = {"trusted_digest": "not supplied", "zip_sha256": sha256_file(zip_path)}
+            print("No EXPECTED_ZIP_SHA256 was supplied: the checks below establish internal consistency only, not that this is the artifact you were sent. Ask the producer for the digest it printed when it exported.")
+    else:
+        raise ValueError(f"ARTIFACT_SOURCE must be the pinned sample or your own ZIP, got {source!r}")
+    P.safe_extract_zip(zip_path, bundle)
+    matches = list(bundle.rglob("artifact.json"))
+    if len(matches) != 1:
+        raise ValueError(f"{zip_path.name}: expected exactly one artifact.json in the artifact, found {len(matches)}.")
+    root = matches[0].parent
+    manifest = json.loads((root / "artifact.json").read_text(encoding="utf-8"))
+    compatibility = P.validate_artifact_runtime(manifest, expected_tabicl_version=importlib.metadata.version("tabicl"), expected_torch_version=torch.__version__.split("+")[0])
+    binding = check_bundle_identity(P, manifest)
+    members = P.verify_artifact_bundle(root, manifest)
+    contract = None
+    if source == "pinned":
+        contract = diabetes_contract()
+        check_data_contract(manifest, contract)
+    context = pd.read_parquet(members["training_context"])
+    target = manifest["targetColumn"]
+    values = context[target].astype(float)
+    record = {"source": source, "zip": zip_path.name, **trust, **binding, "root": str(root), "manifest": manifest, "contextRows": len(context), "contextTarget": {"min": float(values.min()), "max": float(values.max()), "mean": float(values.mean())}, "compatibility": compatibility, "data_contract": "diabetes default path (features and target match)" if contract else "not checked (your own artifact; your rows must follow its manifest)"}
+    run.write_state("external_artifact.json", record)
+    print({k: record[k] for k in ("source", "zip", "zip_sha256", "trusted_digest", "mode", "checkpoint_binding", "data_contract")})
+    print({"artifactFormat": manifest.get("artifactFormat"), "tabiclVersion": manifest.get("tabiclVersion"), "selection": manifest.get("selectionBasis"), "base": manifest.get("baseCheckpoint"), "base_revision": str(manifest.get("baseModelRevision"))[:12], "producer_runtime": manifest.get("runtime"), "producer_notebook_source": {k: (manifest.get("notebookSource") or {}).get(k) for k in ("repository", "revision", "generator")}})
+    print({"featureColumns": len(manifest["featureColumns"]), "targetColumn": target, "contextRows": len(context), "contextTarget": rounded(record["contextTarget"], 2), "nEstimators": manifest["inference"]["nEstimators"], "categoricalEncoders": sorted(manifest["inference"].get("categoricalEncoders", {}))})
+
+
+def external_serving(run: Run):
+    """Serving state rebuilt from the validated artifact's files alone: its checkpoint, its training context (the
+    fitted support rows) and its fitted categorical encoders. Nothing is refitted from inference data."""
+    import pandas as pd
+    import torch
+
+    P = package(run.root)
+    art = run.read_state("external_artifact.json", "external_reconstruct")
+    manifest = art["manifest"]
+    members = P.verify_artifact_bundle(Path(art["root"]), manifest)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    inference = manifest["inference"]
+    n_estimators, random_state = int(inference["nEstimators"]), inference["randomState"]
+    serving = P.TabICLRegressionPipeline(P.create_regressor(model_path=members["checkpoint"], allow_auto_download=False, n_estimators=n_estimators, random_state=random_state, device=device), model_path=members["checkpoint"], n_estimators=n_estimators, random_state=random_state, device=device, source="artifact")
+    context = pd.read_parquet(members["training_context"])
+    serving.fit(context[manifest["featureColumns"]], context[manifest["targetColumn"]])
+    return P, art, manifest, serving
+
+
+def stage_external_reconstruct(run: Run) -> None:
+    _P, art, manifest, serving = external_serving(run)
+    print({"context_rows": art["contextRows"], "context_target": rounded(art["contextTarget"], 2), "features": len(manifest["featureColumns"]), "target": manifest["targetColumn"], "device": serving.device, "source": serving.source, "checkpoint_binding": art["checkpoint_binding"], "categorical_encoders_restored": sorted(manifest["inference"].get("categoricalEncoders", {}))})
+
+
+def external_sample_rows(features: list[str]):
+    """The default input: the first eight holdout rows of the default path's seeded 60/20/20 split of the diabetes table,
+    label removed, with their original row id. They follow the default data contract (SART10) and are not among the
+    artifact's support rows; the split is recomputed here, so no main-path file is read (XAS5)."""
+    _train, holdout, _test = random_60_20_20(diabetes_frame())
+    rows = holdout[features].head(EXTERNAL_SAMPLE_ROWS).copy()
+    rows.insert(0, "row_id", [int(i) for i in rows.index])
+    return rows.reset_index(drop=True)
+
+
+def stage_external_predict(run: Run) -> None:
+    import io as _io
+    import platform
+
+    import numpy
+    import pandas
+    import sklearn
+
+    P, art, manifest, serving = external_serving(run)
+    features = list(manifest["featureColumns"])
+    encoders = manifest["inference"].get("categoricalEncoders", {})
+    path = str(run.options.get("rows_path") or "")
+    if path:
+        file = Path(path)
+        if not file.is_file():
+            raise FileNotFoundError(f"EXTERNAL_ROWS_PATH {path!r} does not exist in this runtime: upload the file or correct the path.")
+        name, payload, kind = file.name, file.read_bytes(), "BYOD"
+    else:
+        if art["source"] != "pinned":
+            raise ValueError("The diabetes sample rows follow the pinned sample artifact's contract only. With your own artifact, set EXTERNAL_ROWS_PATH to rows that follow its manifest.")
+        sample = external_sample_rows(features)
+        buffer = _io.StringIO()
+        sample.to_csv(buffer, index=False)
+        name, payload, kind = f"diabetes-holdout-first-{len(sample)}-rows.csv", buffer.getvalue().encode("utf-8"), "sample"
+    rows = P.read_inference_csv(payload, features)
+    manifest_in = P.validate_inputs(rows, None, feature_columns=features, names=[name])
+    try:  # a probe that breaks the artifact's schema is refused; the finding is recorded, not swallowed
+        P.validate_inputs(rows.drop(columns=[features[0]]), None, feature_columns=features)
+    except ValueError as exc:
+        manifest_in["findings"].append({"input": "missing-column-probe", "verdict": "rejected", "message": str(exc)})
+    else:
+        raise RuntimeError("The missing-column probe was accepted: input validation is not working, so no prediction is written.")
+    rows = check_numeric_features(name, rows, features, encoders)
+    X, unseen = P.apply_categorical_encoder(rows[features], encoders)
+    out = rows.copy()
+    predictions = numpy.asarray(serving.predict(X), dtype=float)
+    if not numpy.all(numpy.isfinite(predictions)):
+        raise RuntimeError("A prediction is not a finite number: no prediction is written.")
+    out["prediction"] = predictions
+    target = external_out(run)
+    target.mkdir(parents=True, exist_ok=True)
+    out.to_csv(target / f"{STEM}_external_predictions.csv", index=False)
+    source = json.loads((run.root / "source.json").read_text(encoding="utf-8")) if (run.root / "source.json").is_file() else {}
+    payload_out = {
+        "section": "external artifact (NOTEBOOK_SPEC 3.0 §19.1): an artifact made outside this run, validated and served here",
+        "predictions": out.to_dict(orient="records"),
+        "input_manifest": manifest_in,
+        "input": {"filename": name, "kind": kind, "rows": len(out), "extra_columns": manifest_in["inputs"][0]["extra_columns"], "features": features},
+        "artifact": {k: art.get(k) for k in ("source", "zip", "zip_sha256", "url", "producer", "trusted_digest", "mode", "checkpoint_binding", "data_contract", "contextRows", "compatibility")} | {"manifest": manifest},
+        "inference": {"nEstimators": serving.n_estimators, "randomState": serving.random_state, "prediction": "continuous point estimate in target units", "uncertainty": None, "unseenCategoricalValues": unseen},
+        "notebook_source": source,
+        "model_id": P.MODEL_ID,
+        "model_revision": P.MODEL_REVISION,
+        "model_license": P.MODEL_LICENSE,
+        "runtime": {"python": platform.python_version(), "numpy": numpy.__version__, "pandas": pandas.__version__, "sklearn": sklearn.__version__, "device": serving.device},
+    }
+    atomic_write_json(target / f"{STEM}_external_result.json", payload_out)
+    if unseen:
+        print("unseen categorical values mapped to the unknown code:", unseen)
+    print(out.round(4).to_string(index=False))
+    print({"outputs": [f"outputs/{EXTERNAL_DIR}/{STEM}_external_predictions.csv", f"outputs/{EXTERNAL_DIR}/{STEM}_external_result.json"], "input_kind": kind, "artifact_source": art["source"], "zip_sha256": art["zip_sha256"]})
+
+
 STAGES = {
     "weights": stage_weights,
     "data": stage_data,
@@ -736,6 +1041,9 @@ STAGES = {
     "export": stage_export,
     "reload": stage_reload,
     "activity": stage_activity,
+    "external_artifact": stage_external_artifact,
+    "external_reconstruct": stage_external_reconstruct,
+    "external_predict": stage_external_predict,
 }
 
 

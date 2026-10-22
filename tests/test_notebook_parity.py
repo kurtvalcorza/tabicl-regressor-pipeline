@@ -1,4 +1,4 @@
-"""NOTEBOOK_SPEC 2.2 parity tests (PAR1–PAR4, ST1) for both standalone tutorial notebooks (generator /3).
+"""NOTEBOOK_SPEC 3.0 parity tests (PAR1–PAR4, ST1) for the standalone tutorial notebook (generator /3).
 
 Each notebook carries the repository's package, its stage runner, the hash lock and the snapshot manifest as text in
 one carrier cell (``metadata.dimer.embedded_sources``); these tests fail whenever a carried file, the lock or the
@@ -30,7 +30,7 @@ def _load(name: str):
 
 
 build = _load("build_notebook")
-TEMPLATES = {name: _load(name).TEMPLATE for name in ("notebook_template", "notebook_template_artifact_inference")}
+TEMPLATES = {name: _load(name).TEMPLATE for name in ("notebook_template",)}
 
 
 def _notebook(template: dict) -> dict:
@@ -92,7 +92,7 @@ def test_par3_generator_check_is_clean(name: str) -> None:
     recorded = notebook["metadata"]["dimer"]["generated_from"]["revision"]
     rendered = build.to_bytes(build.render(ROOT, template, recorded))
     current = (ROOT / "tutorials" / template["notebook_name"]).read_bytes().replace(b"\r\n", b"\n")
-    assert current == rendered, "notebook is stale; run python tools/build_notebook.py (with --template for the companion)"
+    assert current == rendered, "notebook is stale; run python tools/build_notebook.py"
 
 
 @pytest.mark.parametrize("name", sorted(TEMPLATES))

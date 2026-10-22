@@ -31,17 +31,16 @@ jobs:
         run: python scripts/test_issue10_hardening.py
       - name: Validate tutorial and model-card source (NOTEBOOK_SPEC 2.0 standalone carrier)
         run: python tools/validate_release_assets.py
-      - name: Standalone notebook parity (NOTEBOOK_SPEC 2.0 PAR3)
-        run: |
-          python tools/build_notebook.py --check
-          python tools/build_notebook.py --check --template tools/notebook_template_artifact_inference.py
+      - name: Standalone notebook parity (PAR3)
+        run: python tools/build_notebook.py --check
       - name: Compile tutorial and public API checks
         run: python -m compileall -q scripts src tools
 
   release-notebook-execution:
-    # The previous kernel-execution job ran the repository-installing pair. The standalone pair needs the executor
-    # procedure in docs/release-verification.md (outputs/ workspace, ARTIFACT_ZIP_PATH / NEW_DATA_PATH); until
-    # scripts/execute_notebook_release.py is re-pointed at it, this job only states the evidence boundary.
+    # The previous kernel-execution job ran the repository-installing pair. The standalone E2E notebook (which, under
+    # NOTEBOOK_SPEC 3.0, closes with the external-artifact section that replaced the companion) needs the executor
+    # procedure in docs/release-verification.md; until scripts/execute_notebook_release.py is re-pointed at it, this job
+    # only states the evidence boundary.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -20,7 +20,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = ROOT / "tutorials" / "tabiclv2_regressor_colab.ipynb"
-INFERENCE = ROOT / "tutorials" / "tabiclv2_regressor_artifact_inference_colab.ipynb"
 README = ROOT / "tutorials" / "README.md"
 REQ = ROOT / "tutorials" / "requirements-release.txt"
 LOCK = ROOT / "tutorials" / "requirements-release.lock"
@@ -83,19 +82,23 @@ def sys_path_src() -> None:
         sys.path.insert(0, src)
 
 
-main_nb, inf_nb = load_nb(MAIN), load_nb(INFERENCE)
-main_all, inf_all = text(main_nb), text(inf_nb)
-main_own, inf_own = code_text(main_nb, outside_modules=True), code_text(inf_nb, outside_modules=True)
+main_nb = load_nb(MAIN)
+main_all = text(main_nb)
+main_own = code_text(main_nb, outside_modules=True)
+# NOTEBOOK_SPEC 3.0 (KND11): the artifact-inference companion was folded into the E2E notebook's closing
+# external-artifact section (§19.1); the checks that bound the companion now bind that section.
+require(not (ROOT / "tutorials" / "tabiclv2_regressor_artifact_inference_colab.ipynb").exists(), "the retired companion notebook must not ship (KND11)")
+inf_all, inf_own = main_all, main_own
 
 # Profiles / learning contract (the carrier-level checks are the validator's).
-for nb, profile, label in ((main_nb, "E2E", "main"), (inf_nb, "ARTIFACT-INFERENCE", "artifact")):
+for nb, profile, label in ((main_nb, "E2E", "main"),):
     dimer = nb.get("metadata", {}).get("dimer", {})
     require(dimer.get("notebook_profile") == profile, f"{label} profile metadata")
-    require(dimer.get("notebook_spec") == "2.2" and dimer.get("standalone") is True, f"{label} must be standalone spec 2.2")
+    require(dimer.get("notebook_spec") == "3.0" and dimer.get("standalone") is True, f"{label} must be standalone spec 3.0")
 for marker in ("**Profile:** `E2E`", "**This notebook is standalone.**", "## Interpretation and limits"):
     require(marker in main_all, f"main missing {marker!r}")
-for marker in ("**Profile:** `ARTIFACT-INFERENCE`", "**This notebook is standalone.**", "## Interpretation and limits"):
-    require(marker in inf_all, f"artifact missing {marker!r}")
+for marker in ("## 10. Using an artifact made elsewhere", "**This section needs only the setup cells (Sections 1–3).**", "**Trust boundary.**", "outputs/external_artifact/"):
+    require(marker in inf_all, f"external-artifact section missing {marker!r}")
 
 # Reproducible environment: the notebooks carry the hash lock compiled from pyproject's pins; the release files stay
 # consistent with the same pins.
@@ -127,22 +130,22 @@ colab_locked = {m.group(1).lower(): m.group(2) for m in re.finditer(r"^([A-Za-z0
 for name, version in pins.items():
     require(colab_locked.get(name) == version, f"requirements-colab.lock.txt does not pin {name}=={version} (found {colab_locked.get(name)})")
 require("--hash=sha256:" in colab_lock, "requirements-colab.lock.txt must carry hashes")
-for nb, label in ((main_nb, "main"), (inf_nb, "artifact")):
+for nb, label in ((main_nb, "main"),):
     require(carried(nb).get("requirements.txt") == colab_lock.replace("\r\n", "\n"), f"{label} notebook must carry requirements-colab.lock.txt verbatim")
 
 # G2: core model operations flow through the carried public API; no direct tabicl use in the notebooks' own cells.
 api_source = API.read_text(encoding="utf-8")
 for marker in ("def create_regressor", "def create_finetuned_regressor", "def fine_tune_regressor", "def condition_regressor", "def predict_points", "def validate_artifact_runtime", "class TabICLRegressionPipeline", "def safe_extract_zip", "def verify_artifact_bundle", "def manifest_member_path", "def validate_inputs", "def evaluation_report"):
     require(marker in api_source, f"public API missing {marker}")
-for own, label in ((main_own, "main"), (inf_own, "artifact")):
+for own, label in ((main_own, "main"),):
     require("from tabicl import" not in own and "import tabicl" not in own, f"{label} bypasses the carried API with a direct tabicl import")
     require("from tabicl_regressor_pipeline" not in own, f"{label} imports the repository package (ST1)")
     require("P.verify_snapshot(snapshot)" in own, f"{label} does not verify the pinned snapshot through the carried API")
 require("TabICLRegressionPipeline.from_pretrained(weights_dir=run.weights / P.MODEL_KEY" in main_own, "main does not resolve the model through the carried API")
 for marker in ("create_finetuned_regressor(", "fine_tune_regressor(", "pipe.fit(X_train, y_train)", "model.predict(", "compare_metric("):
     require(marker in main_own, f"main does not exercise repository API operation {marker}")
-for marker in ("create_regressor(", "serving.fit(", "serving.predict(", "validate_artifact_runtime(", "safe_extract_zip(", "verify_artifact_bundle("):
-    require(marker in inf_own, f"artifact does not exercise repository API operation {marker}")
+for marker in ("create_regressor(", "serving.fit(", "serving.predict(", "validate_artifact_runtime(", "safe_extract_zip(", "verify_artifact_bundle(", "fetch_pinned_artifact(", "SAMPLE_ARTIFACT_SHA256"):
+    require(marker in inf_own, f"external-artifact section does not exercise repository API operation {marker}")
 
 # Fine-tuning is the pipeline's production adaptation and runs on the default path when CUDA is present (TIC-M2);
 # without CUDA the stage records why it was skipped. Statically protect its callable path and its guards.
@@ -165,42 +168,45 @@ for marker in ("regression_metrics(", "training_mean_baseline(", "Regression tar
 require("no per-prediction uncertainty" in main_all, "main uncertainty boundary missing")
 require("Reproducibility boundary" in main_all, "main variability statement missing")
 require("BYOD privacy boundary" in main_all, "data locality/privacy statement missing")
-require("Uploaded inputs remain in the notebook runtime" in inf_all, "artifact data locality statement missing")
-require('"required_features": len(features)' in inf_own, "artifact does not surface schema before reading rows")
+require("Files stay inside this runtime" in inf_all, "external-artifact data locality statement missing")
 
 # Artifact provenance must establish runtime compatibility before checkpoint reconstruction.
 require("validate_artifact_runtime(" in inf_own, "artifact runtime compatibility is not validated")
-require(inf_own.index("validate_artifact_runtime(") < inf_own.index("create_regressor("), "runtime compatibility must be established before model reconstruction")
-require(inf_own.index("verify_artifact_bundle(") < inf_own.index("create_regressor("), "bundle digests must be verified before model reconstruction")
+section = inf_own[inf_own.index("def stage_external_artifact("):]
+fetcher = inf_own[inf_own.index("def fetch_pinned_artifact("):inf_own.index("def check_bundle_identity(")]
+require(fetcher.index("check_trusted_digest(part") < fetcher.index("os.replace(part, cache)"), "the pinned download must be digest-checked before it is kept")
+require(section.index("fetch_pinned_artifact(") < section.index("safe_extract_zip("), "the pinned digest must be checked before extraction")
+require(section.index("validate_artifact_runtime(") < section.index("create_regressor("), "runtime compatibility must be established before model reconstruction")
+require(section.index("verify_artifact_bundle(") < section.index("create_regressor("), "bundle digests must be verified before model reconstruction")
 
 # Archive / artifact hardening lives in the carried module; the notebooks must use it and never extract raw.
 for marker in ("MAX_ARTIFACT_EXPANDED_BYTES", "Ambiguous backslash ZIP member", "Unexpected or missing artifact files", "Checkpoint size mismatch", "Training-context size mismatch", "def manifest_member_path"):
     require(marker in api_source, f"api hardening marker missing {marker!r}")
-for own, label in ((main_own, "main"), (inf_own, "artifact")):
+for own, label in ((main_own, "main"),):
     # zipfile.ZipFile is used read-only (the uv wheel, the pinned Penguins archive); extraction goes through safe_extract_zip.
     require(".extractall(" not in own and ".extract(" not in own, f"{label} must extract only through safe_extract_zip")
 for marker in ('"payloadFiles"', '"sizes"', '"runtime"', "safe_extract_zip(", "verify_artifact_bundle("):
     require(marker in main_own, f"main hardening marker missing {marker!r}")
-require("EXPECTED_ZIP_SHA256" in inf_own, "artifact hardening marker missing EXPECTED_ZIP_SHA256")
+require("EXPECTED_ZIP_SHA256" in inf_own, "external-artifact hardening marker missing EXPECTED_ZIP_SHA256")
 
 # Source hygiene.
-for label, content in (("main", main_all), ("artifact", inf_all)):
+for label, content in (("main", main_all),):
     for token in ("TODO", "TBD", "FIXME"):
         require(re.search(rf"\b{token}\b", content) is None, f"{label} contains {token}")
     require("C:\\Users\\" not in content and "/home/" not in content, f"{label} contains developer-local path")
 
 # Registry.
 registry = README.read_text(encoding="utf-8")
-require("| `E2E` |" in registry and "| `ARTIFACT-INFERENCE` |" in registry, "tutorial registry missing profiles")
-require("DIMER Notebook Specification 2.2" in registry, "tutorial registry missing spec version")
+require("| `E2E` |" in registry and "| `ARTIFACT-INFERENCE` |" not in registry, "tutorial registry must list the E2E notebook and no artifact-inference companion")
+require("DIMER Notebook Specification 3.0" in registry, "tutorial registry missing the spec version")
 require("requirements-release.lock" in registry, "tutorial registry does not document transitive lock")
 
 # Executor evidence contract (the previous pair's kernel executor; must not fake execution).
 executor = EXECUTOR.read_text(encoding="utf-8")
-for marker in ("NotebookClient", "client.execute()", "make_genuinely_new_rows", "second fresh kernel"):
+for marker in ("NotebookClient", "client.execute()", "external-artifact section"):
     require(marker in executor, f"release executor missing notebook-engine evidence marker {marker!r}")
 require("exec(compile(" not in executor, "release verifier still executes notebook cells as plain Python")
 require("startswith(\"%\")" not in executor, "release verifier still strips notebook magics")
 
-print("NOTEBOOK_SPEC 2.2 repository-specific static conformance: OK")
+print("NOTEBOOK_SPEC 3.0 repository-specific static conformance: OK")
 print("NOTE: static validation is not clean-runtime execution evidence.")
