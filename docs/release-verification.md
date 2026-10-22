@@ -19,6 +19,25 @@ the migrated notebook stays Candidate. Text below that describes the companion, 
 revisions before the fold and is kept as history (REL14); the companion's execution evidence is not evidence for the migrated
 notebook.
 
+**Producing run of the sample artifact (hosted Colab T4, 2026-10-22, `6b95e73` / blob `c74dcd4c08fc`).** The default path of
+`tutorials/tabiclv2_regressor_colab.ipynb` at `main` `6b95e73` (blob `c74dcd4c08fc`, the pre-fold notebook), run by the Colab CLI
+(`colab exec -f`, 0.7.4) on a fresh hosted T4 session, started 2026-10-22T01:18:36Z, wall 156.8 s, exit 0, input unchanged,
+11/11 code cells, verdict PASS. Evidence: [`execution-evidence/2026-10-22-6b95e73/`](execution-evidence/2026-10-22-6b95e73/).
+Its export `outputs/tabiclv2_regressor_artifact.zip` (printed `zip_sha256` `3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828`,
+mode `pretrained`) is published unchanged as the release asset of tag `sample-artifact-diabetes-v1` (target `6b95e73`), whose
+notes name this run (SART8). It is the pinned default artifact of the external-artifact section (Section 10); it is not evidence
+for the migrated notebook, which needs its own hosted run.
+
+**Local-path redaction of the producing-run evidence.** Local paths were replaced by `<local-run-dir>` before the first commit.
+The artifact ZIP is not committed here; it is the release asset.
+
+| File (under `execution-evidence/2026-10-22-6b95e73/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4.ipynb` | `f5298ad6eebe8437e7e253339f0dfa7760bbcbff794b88797d3faa67978fca59` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_exec.log` | `7d7eb14bcfadd0c683366c13ef2186e18cff386d28fad6fa52df8af12be7822b` | `93ddf0cdfed6bd7c2f35690a6d3a1310d976ff3bd37fbcd0ef61231604f0d3dd` |
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_run_summary.json` | `c404d2f936c432d6ed6469dfb297c39d06414e77f713ef72bd85fdf7d1cf4f54` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_suite.log` | `0ac330d193b0b964094aad21dc8954ea1a8aa7f562ebcd326bdba4f4f4db6c7f` | `277e3ac78da430cde69c13dc29b9c820665e549cf22fc7d4fd99155b803d0e79` |
+
 ## Automatic coverage (static, every pull request)
 
 CI runs `tools/validate_release_assets.py`, which checks the notebook (the companion-specific items below applied before the Notebook Spec 3.0 fold; the same checks now bind the external-artifact section, plus the exact pinned URL and digest, the digest check before extraction, the SART10 contract check, the `outputs/external_artifact/` exports and the deterministic export):
