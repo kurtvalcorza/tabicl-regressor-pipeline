@@ -38,6 +38,24 @@ The artifact ZIP is not committed here; it is the release asset.
 | `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_run_summary.json` | `c404d2f936c432d6ed6469dfb297c39d06414e77f713ef72bd85fdf7d1cf4f54` | unchanged (no local path) |
 | `tabiclv2_regressor_colab_6b95e73_colab-cli-t4_suite.log` | `0ac330d193b0b964094aad21dc8954ea1a8aa7f562ebcd326bdba4f4f4db6c7f` | `277e3ac78da430cde69c13dc29b9c820665e549cf22fc7d4fd99155b803d0e79` |
 
+**First hosted run of the migrated notebook (hosted Colab T4, 2026-10-22, `1e1a1ab` / blob `8cb91a8e`, Notebook Spec 3.0).**
+The default path of the folded E2E notebook on PR #29, run by the Colab CLI (`colab exec -f`) on a fresh hosted T4 session,
+started 2026-10-22T02:09:26Z, wall 157.4 s, exit 0, input unchanged; executed cell sources equal blob `8cb91a8e` (44 cells),
+verdict PASS. Evidence: [`execution-evidence/2026-10-22-1e1a1ab/`](execution-evidence/2026-10-22-1e1a1ab/). This is the second
+pass of §32.2. **Section 10 ran end to end on the default path:** it downloaded the release asset of tag
+`sample-artifact-diabetes-v1`, verified SHA-256 `3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828` before
+extraction, rebuilt the regressor from the files alone (the `external_reconstruct` stage completed on the hosted runtime) and
+wrote `outputs/external_artifact/tabiclv2_regressor_external_predictions.csv` and `..._external_result.json` (printed in the
+executed notebook; the files stayed on the released VM). The run's own deterministic export printed `zip_sha256`
+`fc2e628a776732cecaf91c8f670d566bd83df661367e6376dee0104b412ed059`.
+
+| File (under `execution-evidence/2026-10-22-1e1a1ab/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4.ipynb` | `c1902e839b04591783fb85e9b42a4fefd5972936037a69c7c85392d710b72188` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_run_summary.json` | `82935a004266d33a7daf056cefd1d84bdc219baa6d479f8d53ec97c34f8a76ba` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_exec.log` | `6ff20606618f0e9fb5855baefcc9e7da0de1b3ce147fd49d09ff87d722d60d42` | `4992c2a9dd9b413db67d55da3ebb9142c6b74a41195fdebc12f22bba548b228c` (2 replacements) |
+| `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_suite.log` | `b32d73b34aec174b6a6c8d74305005ab23654328d8e353b8c912c5bfc84cdcc6` | `a276bc9b7b44abbcbd38b5293814305a0af70b68d9fadd41f6ff297e162464f9` (4 replacements) |
+
 ## Automatic coverage (static, every pull request)
 
 CI runs `tools/validate_release_assets.py`, which checks the notebook (the companion-specific items below applied before the Notebook Spec 3.0 fold; the same checks now bind the external-artifact section, plus the exact pinned URL and digest, the digest check before extraction, the SART10 contract check, the `outputs/external_artifact/` exports and the deterministic export):
