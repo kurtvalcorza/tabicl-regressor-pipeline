@@ -14,7 +14,7 @@
 
 ## Release status
 
-**Candidate.** Static/unit checks do not constitute clean-runtime notebook evidence. The previous repository-installing pair was executed by CI through real kernels. The current E2E blob `9595d23b` (a text-only regeneration that drops the notebook's own run-status claims; the artifact-inference companion was folded into the notebook and deleted) has no recorded hosted run yet. The one recorded hosted run, a Colab CLI scripted run on a fresh T4 on 2026-10-22 that passed (14/14 code cells, 0 errors), covers the previous blob `8cb91a8e` (commit `1e1a1ab`). It stays Candidate until a hosted run of the current blob, a BYOD run (one input accepted, one refused), a browser run of the interactive journeys and a run of the optional activity are recorded. Complete `docs/release-verification.md` against the exact release revision before calling either notebook release-grade.
+**Candidate.** Static/unit checks do not constitute clean-runtime notebook evidence. The previous repository-installing pair was executed by CI through real kernels. The current E2E blob `9595d23b` (a text-only regeneration that drops the notebook's own run-status claims; the artifact-inference companion was folded into the notebook and deleted) has a recorded hosted default-path run (Colab CLI scripted run on a fresh T4, 2026-10-22, commit `e848401`, PASS, 14/14 code cells, 0 errors) and a recorded hosted run of the optional activity (`RUN_ACTIVITY = True`, same blob, PASS). It stays Candidate until a BYOD run (one input accepted, one refused; REL12) and a browser run of the interactive journeys (REL2) are recorded. Complete `docs/release-verification.md` against the exact release revision before calling either notebook release-grade.
 
 ## The model: TabICLv2
 

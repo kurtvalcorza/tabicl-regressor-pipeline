@@ -56,6 +56,40 @@ executed notebook; the files stayed on the released VM). The run's own determini
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_exec.log` | `6ff20606618f0e9fb5855baefcc9e7da0de1b3ce147fd49d09ff87d722d60d42` | `4992c2a9dd9b413db67d55da3ebb9142c6b74a41195fdebc12f22bba548b228c` (2 replacements) |
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_suite.log` | `b32d73b34aec174b6a6c8d74305005ab23654328d8e353b8c912c5bfc84cdcc6` | `a276bc9b7b44abbcbd38b5293814305a0af70b68d9fadd41f6ff297e162464f9` (4 replacements) |
 
+**Hosted default-path run of the current blob (hosted Colab T4, 2026-10-22, `e848401` / blob `9595d23b`).** The default path
+of `tutorials/tabiclv2_regressor_colab.ipynb` at `e848401` (blob `9595d23bab53`, executed as committed), run by the Colab CLI
+0.7.5 (`colab exec -f`, a scripted run, not a browser Run all) on a fresh hosted T4 session, started 2026-10-22T13:20:42Z,
+wall 229.8 s, exit 0, sequential, input unchanged, 14/14 code cells, 0 errors, verdict PASS. Evidence:
+[`execution-evidence/2026-10-22-e848401/`](execution-evidence/2026-10-22-e848401/). Printed: pretrained holdout MAE 38.8274 / R² 0.5823, independent test
+MAE 44.7756 / R² 0.4863; the bounded CUDA fine-tune ran and `recommended_for_export` was `pretrained` (`holdout:mae`); the
+fresh-process reload printed PASS, max abs prediction difference 0.0; Section 10 reported `trusted_digest: verified (pinned
+SAMPLE_ARTIFACT_SHA256)` for `3cd5abc8…`; the activity cell printed "Optional activity skipped". Local paths were replaced by
+`<local-run-dir>` before the first commit.
+
+| File (under `execution-evidence/2026-10-22-e848401/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4.ipynb` | `90d26192cc9410801064b2f3582466a9276df229ddaa5fa6f72d425ba454266f` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4_exec.log` | `03f956fe6d3287e5aa4c039c1027aa4c63a5876a3516508687231cb5a9a0b3e4` | `1b2f03b19ec8e536cc364be011055abd090b6033bcd139c42aeff90bd50eb230` (2 replacements) |
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4_run_summary.json` | `5b9dce3bb94934b3ef9c5ab41923f8554887f8f380b48baa3a7e39cf71f3d075` | unchanged (no local path) |
+
+**Optional-activity run of the current blob (hosted Colab T4, 2026-10-22, `e848401` / blob `9595d23b`, `RUN_ACTIVITY = True`).**
+A run copy of committed blob `9595d23b` with one override, `RUN_ACTIVITY = False` → `True` (run copy blob `4c30b14b4c90`,
+SHA-256 `33a578d2af3d9b26211ffde63bacb69e2e20e42f409d4b5686008d2d4de94faf`; it differs from the committed blob only in that
+assignment literal, and is committed beside the evidence as `…_activity_run_copy.ipynb`), run by the Colab CLI 0.7.5
+(`colab exec -f`, scripted, not a browser Run all) on a fresh hosted T4 session, started 2026-10-22T13:28:57Z, wall 234.9 s,
+exit 0, sequential, input (the run copy) unchanged, 14/14 code cells, 0 errors, verdict PASS. Evidence:
+[`execution-evidence/2026-10-22-e848401-activity/`](execution-evidence/2026-10-22-e848401-activity/). The Section 11 activity (`n_estimators` 8 → 32) printed holdout (88
+rows) MAE 38.8274 → 38.7106, `mse_delta_changed_minus_canonical` −7.3514 with `paired_se` 6.6904 (`within_two_se: True`),
+independent test (89 rows) MAE 44.7756 → 44.6211, delta −8.0907, `paired_se` 5.4178 (`within_two_se: True`), and
+`{'canonical_outputs_unchanged': True}`.
+
+| File (under `execution-evidence/2026-10-22-e848401-activity/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4_activity.ipynb` | `809b5f52a2e4648330bdfb14ac7ae2e4ce866b0dcf4fe028184feefda40b12a3` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4_activity_exec.log` | `239607c37693d074df6f5e53be982e0a33fe022095a9d32806cfd7d94dc69897` | `92892e2b86a135878a780f87f1a9489867fd49ebfa5061a5f7927af777835936` (2 replacements) |
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4_activity_run_summary.json` | `28b7fce7c21a11253e65208cff003710cb951d5c788c9da0008f9ef60fd5004f` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_e848401_colab-cli-t4_activity_run_copy.ipynb` | `33a578d2af3d9b26211ffde63bacb69e2e20e42f409d4b5686008d2d4de94faf` | unchanged (no local path) |
+
 ## Automatic coverage (static, every pull request)
 
 CI runs `tools/validate_release_assets.py`, which checks the notebook (the companion-specific items below applied before the Notebook Spec 3.0 fold; the same checks now bind the external-artifact section, plus the exact pinned URL and digest, the digest check before extraction, the SART10 contract check, the `outputs/external_artifact/` exports and the deterministic export):
@@ -220,11 +254,10 @@ given beside it.
 
 ## Current status
 
-**Current status (2026-10-22): Candidate.** The current E2E notebook blob is `9595d23b` (`tutorials/tabiclv2_regressor_colab.ipynb`, regenerated from template commit `b7320bc` on `docs/rel14-status`; a text-only change that drops the notebook's own run-status claims). It has no recorded hosted run until the orchestrator records one (REL14). The one recorded hosted run covers the previous blob `8cb91a8e` (`1e1a1ab`, unchanged on `main` at `28d00c5`): the `1e1a1ab` record (*First hosted run of the migrated notebook*, near the top of this file), evidence in `execution-evidence/2026-10-22-1e1a1ab/`. It ran by Colab CLI `colab exec -f` (scripted, not a browser Run all) on a fresh Colab Tesla T4: exit 0, 14/14 code cells, 0 error outputs, 157.4 s, input unchanged, verdict PASS. In that run the bounded CUDA fine-tune ran and the pretrained model was recommended for export (selection on holdout MAE), so the fine-tuned-checkpoint export path was again not exercised; the export reloaded in a fresh process (PASS, max abs prediction difference 1.5e-05); and Section 10 verified the pinned `sample-artifact-diabetes-v1` asset (`3cd5abc8…`) before extraction. The notebook stays **Candidate** until a hosted default-path run of the current blob and these are recorded for it:
+**Current status (2026-10-22): Candidate.** The current E2E notebook blob is `9595d23b` (`tutorials/tabiclv2_regressor_colab.ipynb`, regenerated from template commit `b7320bc` on `docs/rel14-status`; a text-only change that drops the notebook's own run-status claims). Its default path is covered by the `e848401` record (*Hosted default-path run of the current blob*, near the top of this file), evidence in `execution-evidence/2026-10-22-e848401/`. It ran by Colab CLI 0.7.5 `colab exec -f` (scripted, not a browser Run all) on a fresh Colab Tesla T4: exit 0, 14/14 code cells, 0 error outputs, 229.8 s, input unchanged, verdict PASS. In that run the bounded CUDA fine-tune ran and the pretrained model was recommended for export (selection on holdout MAE), so the fine-tuned-checkpoint export path was again not exercised; the export reloaded in a fresh process (PASS, max abs prediction difference 0.0); and Section 10 verified the pinned `sample-artifact-diabetes-v1` asset (`3cd5abc8…`) before extraction. The optional-activity gate (the owner's 2026-10-22 ruling that the Section 11 activity runs once on the current blob before promotion) is satisfied by the `e848401` optional-activity record (`RUN_ACTIVITY = True` run copy, PASS, evidence in `execution-evidence/2026-10-22-e848401-activity/`). The earlier `1e1a1ab` record covers the previous blob `8cb91a8e` and is history. The notebook stays **Candidate** until these two are recorded for the current blob:
 
 - **REL12:** a BYOD run in which one representative input is accepted through the downstream stages and one incompatible input is refused;
-- **REL2:** a browser run of the interactive journeys (BYOD upload dialog, optional-activity toggle, own-artifact ZIP); the scripted CLI run counts for the default path only;
-- **Optional activity:** a run of the Section 11 ensemble-size activity (`RUN_ACTIVITY`); the `1e1a1ab` run printed "Optional activity skipped". The owner ruled on 2026-10-22 that it must be run before promotion.
+- **REL2:** a browser run of the interactive journeys (BYOD upload dialog, optional-activity toggle, own-artifact ZIP); the scripted CLI runs count for the default path and the activity only.
 
 Promotion is an integrator decision; the builder does not change the status.
 
