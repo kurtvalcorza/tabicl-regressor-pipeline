@@ -37,10 +37,6 @@ Both pipeline implementations provide ready-to-run interactive Google Colab note
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-classifier-pipeline/blob/main/tutorials/tabiclv2_classifier_colab.ipynb) [`tabiclv2_classifier_colab.ipynb`](https://github.com/kurtvalcorza/tabicl-classifier-pipeline/blob/main/tutorials/tabiclv2_classifier_colab.ipynb)  
   *Acquire the pinned TabICLv2 classification checkpoint, validate your own labelled table, evaluate in-context classification on a held-out split, optionally fine-tune on a GPU, and export a serving bundle carrying checkpoint and training context.*
 
-- **Serving Artifact Inference Tutorial**:  
-  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/tabicl-classifier-pipeline/blob/main/tutorials/tabiclv2_classifier_artifact_inference_colab.ipynb) [`tabiclv2_classifier_artifact_inference_colab.ipynb`](https://github.com/kurtvalcorza/tabicl-classifier-pipeline/blob/main/tutorials/tabiclv2_classifier_artifact_inference_colab.ipynb)  
-  *Verify an externally supplied TabICL serving bundle (archive consistency, optional SHA-256, checkpoint plus training context), reconstruct the in-context estimator, and predict class labels for new rows with no gradient fine-tuning.*
-
 ### TabICLv2 Regressor (`tabicl-regressor-pipeline`)
 
 - **End-to-End Pipeline Tutorial**:  
