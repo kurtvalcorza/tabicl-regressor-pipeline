@@ -56,6 +56,46 @@ executed notebook; the files stayed on the released VM). The run's own determini
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_exec.log` | `6ff20606618f0e9fb5855baefcc9e7da0de1b3ce147fd49d09ff87d722d60d42` | `4992c2a9dd9b413db67d55da3ebb9142c6b74a41195fdebc12f22bba548b228c` (2 replacements) |
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_suite.log` | `b32d73b34aec174b6a6c8d74305005ab23654328d8e353b8c912c5bfc84cdcc6` | `a276bc9b7b44abbcbd38b5293814305a0af70b68d9fadd41f6ff297e162464f9` (4 replacements) |
 
+**Hosted default-path run of blob `9610654e` (hosted Colab T4, 2026-10-23, `ff3532c`; the current blob).** The default path
+of `tutorials/tabiclv2_regressor_colab.ipynb` at `ff3532c` (blob `9610654e`, executed as committed; the fetched source's Git
+blob id was re-checked), run by the Colab CLI (`colab exec -f`, a scripted run, not a browser Run all) on a fresh hosted T4
+session, started 2026-10-23T15:45:24Z, wall 173.0 s, exit 0, sequential, input unchanged, 14/14 code cells, 0 errors, verdict
+PASS. Evidence: [`execution-evidence/2026-10-23-ff3532c/`](execution-evidence/2026-10-23-ff3532c/). Printed: pretrained holdout MAE 38.8274 / R² 0.5823, independent test MAE 44.7756 /
+R² 0.4863 (training-mean baseline holdout MAE 67.5162); the bounded CUDA fine-tune ran (`requested: True`, `ran: True`) and
+`recommended_for_export` was `pretrained` (`holdout:mae`), so the fine-tuned-checkpoint export path was again not exercised;
+the export printed `zip_sha256` `b655db52f70e977406b77d23211d4ecedd840430f151bed010f40819a44ec227` (`mode: pretrained`); the
+fresh-process reload printed PASS, max abs prediction difference 0.0 (rtol 1e-05, atol 1e-07); Section 10 reported
+`trusted_digest: verified (pinned SAMPLE_ARTIFACT_SHA256)` for `3cd5abc8…` and wrote its two `outputs/external_artifact/`
+files; the activity cell printed "Optional activity skipped". The default path refuses nothing, so this run shows no
+`Refused:` line. Local paths were replaced by `<local-run-dir>` before the first commit.
+
+| File (under `execution-evidence/2026-10-23-ff3532c/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4.ipynb` | `3d28a4cd081b6d6a28146d35a0d979a528a60c60c004dd12f5341e5df127c4a1` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4_exec.log` | `960f5c461faba9a4511ea3d73e69bdee962fa186c331c51cf629b37dba02c34b` | `4394a37ef3fce77effad1f095a6eb016da3b3a3909f2a6ab2418303797003dec` (2 replacements) |
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4_run_summary.json` | `4b60f36ba73e4fc77b70574708c54e4f1923d071ba706f6d6fc2c747448593bc` | unchanged (no local path) |
+
+**Optional-activity run of blob `9610654e` (hosted Colab T4, 2026-10-23, `ff3532c`, `RUN_ACTIVITY = True`; the current blob).**
+A run copy of committed blob `9610654e` with one override, `RUN_ACTIVITY = False` → `True` (run copy blob `aaa1e4956d48`,
+SHA-256 `088426bec5dc56074b152d767a4a510d8da7172c999642cd496f189445f37a2f`; it differs from the committed blob only in that
+assignment literal, and is committed beside the evidence as `…_activity_run_copy.ipynb`), run by the Colab CLI
+(`colab exec -f`, scripted, not a browser Run all) on a fresh hosted T4 session, started 2026-10-23T15:45:44Z, wall 158.4 s,
+exit 0, sequential, input (the run copy) unchanged, 14/14 code cells, 0 errors, verdict PASS. Evidence:
+[`execution-evidence/2026-10-23-ff3532c-activity/`](execution-evidence/2026-10-23-ff3532c-activity/). The default-path outputs printed the same metrics, the same
+`recommended_for_export` (`pretrained`) and the same export digest (`b655db52…`) as the default-path run above; the
+fresh-process reload printed PASS with max abs prediction difference 1.52587890625e-05. The Section 11 activity
+(`n_estimators` 8 → 32) printed holdout (88 rows) MAE 38.8274 → 38.7106, `mse_delta_changed_minus_canonical` −7.3514 with
+`paired_se` 6.6904 (`within_two_se: True`), independent test (89 rows) MAE 44.7756 → 44.6211, delta −8.0907, `paired_se`
+5.4178 (`within_two_se: True`), and `{'canonical_outputs_unchanged': True}`. Both deltas are within two paired standard
+errors, so the change is within split noise, not an improvement.
+
+| File (under `execution-evidence/2026-10-23-ff3532c-activity/`) | Captured | Committed |
+|---|---|---|
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4_activity.ipynb` | `040e9b3a89f5546a1f314bfc7071de6339eff74c2f33d5e68f838b5f3d75e0fe` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4_activity_exec.log` | `aba7e425af6f55f6e7d508bd8f2dfc63465fd9dcc5caa9834677e42eb74f3220` | `bfcf7cffaa9d377693e3fb893db3db8951428d2e7030c3aef0c7b6544e257bd1` (2 replacements) |
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4_activity_run_summary.json` | `172154921b4f6120f5488f8f376f74a17de3cd215f799f56d732026978d2c007` | unchanged (no local path) |
+| `tabiclv2_regressor_colab_ff3532c_colab-cli-t4_activity_run_copy.ipynb` | `088426bec5dc56074b152d767a4a510d8da7172c999642cd496f189445f37a2f` | unchanged (no local path) |
+
 **Hosted default-path run of blob `de171c3d` (hosted Colab T4, 2026-10-23, `936cc5c`; the current blob until `6c9f84c`, now history, REL14).** The default path
 of `tutorials/tabiclv2_regressor_colab.ipynb` at `936cc5c` (blob `de171c3d`, executed as committed; the fetched source's Git
 blob id was re-checked), run by the Colab CLI (`colab exec -f`, a scripted run, not a browser Run all) on a fresh hosted T4
@@ -292,9 +332,8 @@ given beside it.
 
 ## Current status
 
-**Current status (2026-10-23): Candidate.** The current E2E notebook blob is `9610654e` (`tutorials/tabiclv2_regressor_colab.ipynb`, regenerated from code commit `6c9f84c` on `fix/section8-own-rows-refusal`: Section 8 checks your own rows for text in a numeric feature before the model is loaded and refuses it in one `Refused: <file>: <reason>` line naming the columns, values and CSV lines, with nothing scored or written; NOTEBOOK_SPEC 3.0 DAT19/DAT20). It has no recorded hosted run until the orchestrator records one (REL14). The rest of this paragraph describes the previous blob `de171c3d` and is history, not evidence for the current blob. The previous blob was `de171c3d` (`tutorials/tabiclv2_regressor_colab.ipynb`, regenerated from code commit `7178e9a` on `fix/refusal-display` and committed at `936cc5c`: a refused user input — the Section 4 upload, Section 8 rows, your own Section 10 artifact ZIP or rows — is shown as one `Refused: <file>: <reason>` line with no traceback, and Run all stops at that cell; NOTEBOOK_SPEC 3.0 DAT19/DAT20). Its default path is covered by the `936cc5c` record (*Hosted default-path run of blob `de171c3d`*, near the top of this file), evidence in `execution-evidence/2026-10-23-936cc5c/`: Colab CLI `colab exec -f` (scripted, not a browser Run all) on a fresh Colab Tesla T4, exit 0, 14/14 code cells, 0 error outputs, 167.4 s, input unchanged, verdict PASS. In that run the bounded CUDA fine-tune ran and the pretrained model was recommended for export (selection on holdout MAE), so the fine-tuned-checkpoint export path was again not exercised; the export reloaded in a fresh process (PASS, max abs prediction difference 1.5e-05); and Section 10 verified the pinned `sample-artifact-diabetes-v1` asset (`3cd5abc8…`) before extraction. The optional-activity gate (the owner's 2026-10-22 ruling that the Section 11 activity runs once on the current blob before promotion) is covered by the `936cc5c` optional-activity record (`RUN_ACTIVITY = True` run copy, PASS, 184.2 s, evidence in `execution-evidence/2026-10-23-936cc5c-activity/`). The runs of earlier blobs are history, not evidence for `de171c3d` (REL14): the `e848401` default-path and optional-activity records cover blob `9595d23b`, and the `1e1a1ab` record covers blob `8cb91a8e`. Neither hosted run of `de171c3d` exercised a refusal; the one-line `Refused:` display is covered by `tests/test_refusal_display.py` and is part of REL12 below. The notebook stays **Candidate** until these are recorded for the current blob `9610654e`:
+**Current status (2026-10-23): Candidate.** The current E2E notebook blob is `9610654e` (`tutorials/tabiclv2_regressor_colab.ipynb`, regenerated at `de7d72e` from code commit `6c9f84c` on `fix/section8-own-rows-refusal`, PR head `ff3532c`: Section 8 checks your own rows for text in a numeric feature before the model is loaded and refuses it in one `Refused: <file>: <reason>` line naming the columns, values and CSV lines, with nothing scored or written; NOTEBOOK_SPEC 3.0 DAT19/DAT20). Its default path is covered by the `ff3532c` record (*Hosted default-path run of blob `9610654e`*, near the top of this file), evidence in `execution-evidence/2026-10-23-ff3532c/`: Colab CLI `colab exec -f` (scripted, not a browser Run all) on a fresh Colab Tesla T4, exit 0, 14/14 code cells, 0 error outputs, 173.0 s, input unchanged, verdict PASS. In that run the bounded CUDA fine-tune ran and the pretrained model was recommended for export (selection on holdout MAE), so the fine-tuned-checkpoint export path was again not exercised; the export reloaded in a fresh process (PASS, max abs prediction difference 0.0); and Section 10 verified the pinned `sample-artifact-diabetes-v1` asset (`3cd5abc8…`) before extraction. The optional-activity gate (the owner's 2026-10-22 ruling that the Section 11 activity runs once on the current blob before promotion) is covered by the `ff3532c` optional-activity record (`RUN_ACTIVITY = True` run copy, PASS, 158.4 s, evidence in `execution-evidence/2026-10-23-ff3532c-activity/`). The runs of earlier blobs are history, not evidence for `9610654e` (REL14): the `936cc5c` default-path and optional-activity records cover blob `de171c3d`, the `e848401` records cover blob `9595d23b`, and the `1e1a1ab` record covers blob `8cb91a8e`. Neither hosted run of `9610654e` exercised a refusal; the one-line `Refused:` display, including the Section 8 own-rows refusal, is covered by `tests/test_refusal_display.py` and is part of REL12 below. The notebook stays **Candidate** until these are recorded for the current blob `9610654e`:
 
-- **REL14:** a hosted default-path run and an optional-activity run (`RUN_ACTIVITY = True`) of `9610654e`;
 - **REL12:** a BYOD run in which one representative input is accepted through the downstream stages and one incompatible input is refused (the browser kit also refuses your own Section 8 rows with text in a numeric feature);
 - **REL2:** a browser run of the interactive journeys (BYOD upload dialog, optional-activity toggle, own-artifact ZIP); the scripted CLI runs count for the default path and the activity only.
 
