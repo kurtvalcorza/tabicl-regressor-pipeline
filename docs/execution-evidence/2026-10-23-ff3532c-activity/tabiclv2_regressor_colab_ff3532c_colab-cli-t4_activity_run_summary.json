@@ -1,0 +1,51 @@
+{
+  "repo": "tabicl-regressor-pipeline",
+  "sha": "ff3532c461363faee90c2d5299b7b84d0f27ad64",
+  "notebook": "tutorials/tabiclv2_regressor_colab.ipynb",
+  "blob": "9610654ec891ec837aed2dc6565233a169721f92",
+  "gpu": "T4",
+  "session": "suite-tabicl-ff3532c-1cb9",
+  "started_utc": "2026-10-23T15:45:44+00:00",
+  "runner": "Colab CLI `colab exec -f` on a fresh session (not a browser Run all)",
+  "overrides": [
+    {
+      "name": "RUN_ACTIVITY",
+      "from": "False",
+      "to": "True"
+    }
+  ],
+  "run_copy_blob": "aaa1e4956d488266e627a0f4236122d3db74d1e2",
+  "run_copy_sha256": "088426bec5dc56074b152d767a4a510d8da7172c999642cd496f189445f37a2f",
+  "run_copy_note": "the executed copy differs from the committed blob only in the listed assignment literals; input_unchanged compares against that copy",
+  "status": "[suite-tabicl-ff3532c-1cb9] gpu-t4-s-kkb-usw4a2-iwqg9lvow0jd | Hardware: T4 | Shape: Standard | Variant: GPU | Status: IDLE",
+  "exec_exit_code": 0,
+  "stopped": true,
+  "wall_s": 158.4,
+  "input_unchanged": true,
+  "executed_file": "tabiclv2_regressor_colab_ff3532c_colab-cli-t4_output.ipynb",
+  "log_cells": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "log_total": 14,
+  "code_cells": 14,
+  "executed_cells": 14,
+  "errors": [],
+  "execution_counts": [],
+  "sequential": null,
+  "executed_sha256": "040e9b3a89f5546a1f314bfc7071de6339eff74c2f33d5e68f838b5f3d75e0fe",
+  "log_sequential_complete": true,
+  "verdict": "PASS"
+}
