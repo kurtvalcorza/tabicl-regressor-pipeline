@@ -9,7 +9,11 @@ Nothing is installed into the notebook kernel. Each stage is a separate process 
 verified checkpoint under ``--weights``, the partitions, encoders and records of earlier stages under
 ``RUN_DIR/state``, and the learner-facing exports under ``--outputs``. In-context conditioning (``fit``) registers the
 support rows and is repeated by every stage that needs the model; a fine-tuned candidate is kept as a checkpoint file.
-On failure a stage writes ``RUN_DIR/state/<stage>.error.json``, which the notebook re-raises in the kernel.
+On failure a stage writes ``RUN_DIR/state/<stage>.error.json``, which the notebook re-raises in the kernel. A user input
+the stage refuses (the BYOD table, uploaded rows, your own artifact ZIP) is not a failure (NOTEBOOK_SPEC 3.0
+DAT19/DAT20): the stage raises ``Refused``, prints no traceback, records ``"refused": true`` with the file name and the
+rule, and exits with ``REFUSED_EXIT``; the notebook then shows one ``Refused: <file>: <reason>`` line and stops at that
+cell.
 
 Stages: weights → data → validate → condition → report → predict → export → reload, then the closing external-artifact
 section (NOTEBOOK_SPEC 3.0 §19.1) external_artifact → external_reconstruct → external_predict, plus the optional
@@ -30,6 +34,7 @@ import re
 import shutil
 import sys
 import traceback
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +72,31 @@ SAMPLE_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024  # a download larger than this is 
 EXTERNAL_DIR = "external_artifact"  # under outputs/: the section's predictions and provenance (XAS6)
 EXTERNAL_SAMPLE_ROWS = 8
 SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+
+REFUSED_EXIT = 3  # a user input refused with a learner-facing message (DAT20); argparse already uses 2, a crash exits 1
+RERUN_SECTION_4 = "Fix the file (or the Section 4 fields) and run the Section 4 cell again."
+
+
+class Refused(ValueError):
+    """A user-supplied input that breaks the input contract (DAT19). Not a crash: no traceback is printed for it."""
+
+    def __init__(self, file: str, reason: str) -> None:
+        self.file = str(file) or "your input"
+        self.reason = str(reason).strip()
+        super().__init__(f"{self.file}: {self.reason}")
+
+
+def refused(exc: BaseException, file: str, fix: str) -> Refused:
+    """``exc`` (whose message may start with ``<file>: ``) as one ``Refused`` naming ``file``, with how to recover."""
+    message = str(exc).strip()
+    if message.startswith(f"{file}: "):
+        message = message[len(file) + 2:]
+    if not message.endswith((".", ")")):
+        message += "."
+    if "again" not in message:
+        message += f" {fix}"
+    return Refused(file, message)
 
 
 class Run:
@@ -264,9 +294,9 @@ def stage_data(run: Run) -> None:
     source = opts.get("data_source", "Sample: Diabetes")
     use_byod = bool(opts.get("use_byod", False))
     if use_byod and source in SAMPLE_SOURCES:
-        raise ValueError('USE_BYOD=True requires DATA_SOURCE = "Upload CSV" or "Upload pre-split train/val/test".')
+        raise Refused("DATA_SOURCE", 'USE_BYOD=True requires DATA_SOURCE = "Upload CSV" or "Upload pre-split train/val/test". Change one of the two fields and run the Section 4 cell again.')
     if source in UPLOAD_SOURCES and not use_byod:
-        raise ValueError("Set USE_BYOD=True to use an upload DATA_SOURCE.")
+        raise Refused("DATA_SOURCE", "Set USE_BYOD=True to use an upload DATA_SOURCE, then run the Section 4 cell again.")
     removed = clear_outputs(run)
     for name in ("train.parquet", "holdout.parquet", "test.parquet", "data.json", "encoded.json", "condition.json", "export_reference.json"):
         (run.state / name).unlink(missing_ok=True)
@@ -282,21 +312,30 @@ def stage_data(run: Run) -> None:
         paths = opts.get("paths") or {}
         def read(key: str):
             path = Path(paths.get(key) or "")
-            if not str(path) or not path.is_file():
-                raise FileNotFoundError(f"BYOD {key} file {str(path)!r} does not exist in this runtime: upload it or correct the path field.")
+            if str(path) in ("", ".") or not path.is_file():
+                raise Refused(str(path) if str(path) not in ("", ".") else f"BYOD {key} file", f"the BYOD {key} file does not exist in this runtime: upload it or correct the path field, then run the Section 4 cell again.")
             if path.suffix.lower() != ".csv":
-                raise ValueError(f"{path.name}: BYOD files must be CSV.")
-            frame = P.read_csv_payload(path.read_bytes(), path.name)
-            blank = check_byod_table(frame, path.name, target, text_columns)
+                raise Refused(path.name, f"BYOD files must be CSV. {RERUN_SECTION_4}")
+            try:
+                frame = P.read_csv_payload(path.read_bytes(), path.name)
+                blank = check_byod_table(frame, path.name, target, text_columns)
+            except (ValueError, OSError) as exc:  # the learner's file breaks the input contract: refused, not a crash
+                raise refused(exc, path.name, RERUN_SECTION_4) from None
             if blank:
                 dropped[key] = blank
             return frame, path.name
         if source == "Upload CSV":
             frame, name = read("csv")
-            raw_manifest = P.validate_inputs(frame, target_column=target, names=[name])
+            try:
+                raw_manifest = P.validate_inputs(frame, target_column=target, names=[name])
+            except ValueError as exc:
+                raise refused(exc, name, RERUN_SECTION_4) from None
             if raw_manifest["inputs"][0]["dropped_non_finite_target_rows"] != dropped.get("csv", 0):
                 raise RuntimeError(f"{name}: dropped-row accounting disagrees ({raw_manifest['inputs'][0]['dropped_non_finite_target_rows']} vs {dropped.get('csv', 0)}); report this")
-            frame, _ = P.prepare_regression_table(frame, target)
+            try:
+                frame, _ = P.prepare_regression_table(frame, target)
+            except ValueError as exc:
+                raise refused(exc, name, RERUN_SECTION_4) from None
             from sklearn.model_selection import train_test_split
 
             train, holdout = train_test_split(frame, test_size=VALIDATION_SPLIT, random_state=SEED)
@@ -328,32 +367,37 @@ def stage_validate(run: Run) -> None:
     holdout = run.read_frame("holdout.parquet", "validate")
     test = run.read_frame("test.parquet", "validate") if (run.state / "test.parquet").is_file() else None
     print({"ceilings": {"MIN_TRAIN_ROWS": P.MIN_TRAIN_ROWS, "MIN_EVAL_ROWS": P.MIN_EVAL_ROWS, "MAX_TRAIN_ROWS": P.MAX_TRAIN_ROWS, "MAX_FEATURES": P.MAX_FEATURES}, "target": "finite numbers that vary; blank targets dropped and counted"})
-    manifest = P.validate_inputs(train, target_column=target, names=[name + ":train"])
-    if data["dropped_missing_target_rows_before_split"].get("csv"):
-        manifest["inputs"][0]["dropped_missing_target_rows_before_split"] = data["dropped_missing_target_rows_before_split"]["csv"]
-    manifest["inputs"].extend(P.validate_inputs(holdout, target_column=target, min_rows=P.MIN_EVAL_ROWS, names=[name + ":holdout"])["inputs"])
-    if test is not None:
-        manifest["inputs"].extend(P.validate_inputs(test, target_column=target, min_rows=P.MIN_EVAL_ROWS, names=[name + ":test"])["inputs"])
-    # Demonstrate rejection on a probe that breaks a ceiling; the finding is recorded, not swallowed.
     try:
-        P.validate_inputs(train.head(P.MIN_TRAIN_ROWS - 1), target_column=target)
+        manifest = P.validate_inputs(train, target_column=target, names=[name + ":train"])
+        if data["dropped_missing_target_rows_before_split"].get("csv"):
+            manifest["inputs"][0]["dropped_missing_target_rows_before_split"] = data["dropped_missing_target_rows_before_split"]["csv"]
+        manifest["inputs"].extend(P.validate_inputs(holdout, target_column=target, min_rows=P.MIN_EVAL_ROWS, names=[name + ":holdout"])["inputs"])
+        if test is not None:
+            manifest["inputs"].extend(P.validate_inputs(test, target_column=target, min_rows=P.MIN_EVAL_ROWS, names=[name + ":test"])["inputs"])
+        # Demonstrate rejection on a probe that breaks a ceiling; the finding is recorded, not swallowed.
+        try:
+            P.validate_inputs(train.head(P.MIN_TRAIN_ROWS - 1), target_column=target)
+        except ValueError as exc:
+            manifest["findings"].append({"input": "too-few-rows-probe", "verdict": "rejected", "message": str(exc)})
+        train_row_ids = list(map(int, train.index)) if train.index.dtype.kind in "iu" else list(range(len(train)))
+        holdout_row_ids = list(map(int, holdout.index)) if holdout.index.dtype.kind in "iu" else list(range(len(holdout)))
+        train, dropped_train = P.prepare_regression_table(train, target)
+        holdout, dropped_holdout = P.prepare_regression_table(holdout, target, min_rows=P.MIN_EVAL_ROWS)
+        dropped_test = 0
+        if test is not None:
+            test, dropped_test = P.prepare_regression_table(test, target, min_rows=P.MIN_EVAL_ROWS)
+        features = [c for c in train.columns if c != target]
+        train = train[features + [target]].reset_index(drop=True)
+        holdout = P.align_to_schema(holdout, features, target)
+        test = P.align_to_schema(test, features, target) if test is not None else None
+        encoders = P.fit_categorical_encoder(train, features)
+        train_enc, _ = P.apply_categorical_encoder(train, encoders)
+        holdout_enc, unseen_holdout = P.apply_categorical_encoder(holdout, encoders)
+        test_enc, unseen_test = P.apply_categorical_encoder(test, encoders) if test is not None else (None, {})
     except ValueError as exc:
-        manifest["findings"].append({"input": "too-few-rows-probe", "verdict": "rejected", "message": str(exc)})
-    train_row_ids = list(map(int, train.index)) if train.index.dtype.kind in "iu" else list(range(len(train)))
-    holdout_row_ids = list(map(int, holdout.index)) if holdout.index.dtype.kind in "iu" else list(range(len(holdout)))
-    train, dropped_train = P.prepare_regression_table(train, target)
-    holdout, dropped_holdout = P.prepare_regression_table(holdout, target, min_rows=P.MIN_EVAL_ROWS)
-    dropped_test = 0
-    if test is not None:
-        test, dropped_test = P.prepare_regression_table(test, target, min_rows=P.MIN_EVAL_ROWS)
-    features = [c for c in train.columns if c != target]
-    train = train[features + [target]].reset_index(drop=True)
-    holdout = P.align_to_schema(holdout, features, target)
-    test = P.align_to_schema(test, features, target) if test is not None else None
-    encoders = P.fit_categorical_encoder(train, features)
-    train_enc, _ = P.apply_categorical_encoder(train, encoders)
-    holdout_enc, unseen_holdout = P.apply_categorical_encoder(holdout, encoders)
-    test_enc, unseen_test = P.apply_categorical_encoder(test, encoders) if test is not None else (None, {})
+        if data["sample_kind"] != "BYOD":
+            raise  # the bundled sample failing its own contract is a bug, not a refusal
+        raise refused(exc, name, "Fix the file(s) and run Sections 4 and 5 again.") from None
     baseline = P.training_mean_baseline(train_enc[target], holdout_enc[target])
     run.write_output(f"{STEM}_input_manifest.json", manifest)
     print(json.dumps(manifest["inputs"][0], indent=2))
@@ -591,18 +635,24 @@ def stage_predict(run: Run) -> None:
     P = package(run.root)
     data = run.read_state("data.json", "predict")
     enc, train, holdout, test = encoded(run, "predict")
-    model, cond = active_model(run, enc, train)
+    for stale in (f"{STEM}_predictions.csv", f"{STEM}_result.json"):  # a refusal leaves no earlier result on disk (DAT20)
+        (run.out / stale).unlink(missing_ok=True)
     new_data = None
     path = run.options.get("new_data_path") or ""
     if path:
         file = Path(path)
         if not file.is_file():
-            raise FileNotFoundError(f"NEW_DATA_PATH {path!r} does not exist in this runtime.")
-        rows = P.read_inference_csv(file.read_bytes(), enc["features"])
-        manifest = P.validate_inputs(rows, None, feature_columns=enc["features"], names=[file.name])
+            raise Refused(path, "does not exist in this runtime: upload the file or correct NEW_DATA_PATH, then run the Section 8 cell again.")
+        try:  # the rows are checked before the model is loaded, so a refused file costs no model load (DAT19)
+            rows = P.read_inference_csv(file.read_bytes(), enc["features"])
+            manifest = P.validate_inputs(rows, None, feature_columns=enc["features"], names=[file.name])
+        except (ValueError, OSError) as exc:
+            raise refused(exc, file.name, "Fix the file and run the Section 8 cell again.") from None
+        model, cond = active_model(run, enc, train)
         out, unseen = with_predictions(P, model, rows, enc)
         new_data = {"input": file.name, "rows": len(out), "unseen_categorical_values": unseen, "input_manifest": manifest}
     else:
+        model, cond = active_model(run, enc, train)
         rows = new_rows_frame(run, enc)
         out, unseen = with_predictions(P, model, rows, enc)
         rows.to_csv(run.out / f"{STEM}_new_rows.csv", index=False)
@@ -885,7 +935,6 @@ def stage_external_artifact(run: Run) -> None:
     import importlib.metadata
 
     import pandas as pd
-    import torch
 
     P = package(run.root)
     opts = run.options
@@ -901,29 +950,41 @@ def stage_external_artifact(run: Run) -> None:
         trust = {"trusted_digest": "verified (pinned SAMPLE_ARTIFACT_SHA256)", "zip_sha256": SAMPLE_ARTIFACT_SHA256, "url": SAMPLE_ARTIFACT_URL, "producer": SAMPLE_ARTIFACT_PRODUCER}
     elif source == "own":
         zip_path = Path(opts.get("zip_path") or "")
-        if not str(zip_path) or not zip_path.is_file():
-            raise FileNotFoundError(f"ARTIFACT_ZIP_PATH {str(zip_path)!r} is not a file in this runtime: point it at the artifact ZIP you were given.")
+        if str(zip_path) in ("", ".") or not zip_path.is_file():
+            raise Refused(str(zip_path) if str(zip_path) not in ("", ".") else "ARTIFACT_ZIP_PATH", "is not a file in this runtime: point ARTIFACT_ZIP_PATH at the artifact ZIP you were given, or upload it, then run this cell again.")
         expected = str(opts.get("expected_zip_sha256") or "")
         if expected:
-            trust = {"trusted_digest": "verified (EXPECTED_ZIP_SHA256)", "zip_sha256": check_trusted_digest(zip_path, expected, "EXPECTED_ZIP_SHA256")}
+            try:
+                digest = check_trusted_digest(zip_path, expected, "EXPECTED_ZIP_SHA256")
+            except ValueError as exc:
+                raise Refused(zip_path.name, f"{exc} Then run this cell again.") from None
+            trust = {"trusted_digest": "verified (EXPECTED_ZIP_SHA256)", "zip_sha256": digest}
         else:
             trust = {"trusted_digest": "not supplied", "zip_sha256": sha256_file(zip_path)}
             print("No EXPECTED_ZIP_SHA256 was supplied: the checks below establish internal consistency only, not that this is the artifact you were sent. Ask the producer for the digest it printed when it exported.")
     else:
         raise ValueError(f"ARTIFACT_SOURCE must be the pinned sample or your own ZIP, got {source!r}")
-    P.safe_extract_zip(zip_path, bundle)
-    matches = list(bundle.rglob("artifact.json"))
-    if len(matches) != 1:
-        raise ValueError(f"{zip_path.name}: expected exactly one artifact.json in the artifact, found {len(matches)}.")
-    root = matches[0].parent
-    manifest = json.loads((root / "artifact.json").read_text(encoding="utf-8"))
-    compatibility = P.validate_artifact_runtime(manifest, expected_tabicl_version=importlib.metadata.version("tabicl"), expected_torch_version=torch.__version__.split("+")[0])
-    binding = check_bundle_identity(P, manifest)
-    members = P.verify_artifact_bundle(root, manifest)
-    contract = None
-    if source == "pinned":
-        contract = diabetes_contract()
-        check_data_contract(manifest, contract)
+    try:
+        P.safe_extract_zip(zip_path, bundle)
+        matches = list(bundle.rglob("artifact.json"))
+        if len(matches) != 1:
+            raise ValueError(f"{zip_path.name}: expected exactly one artifact.json in the artifact, found {len(matches)}.")
+        root = matches[0].parent
+        manifest = json.loads((root / "artifact.json").read_text(encoding="utf-8"))
+        import torch  # imported only once the ZIP's members have passed their checks
+
+        compatibility = P.validate_artifact_runtime(manifest, expected_tabicl_version=importlib.metadata.version("tabicl"), expected_torch_version=torch.__version__.split("+")[0])
+        binding = check_bundle_identity(P, manifest)
+        members = P.verify_artifact_bundle(root, manifest)
+        contract = None
+        if source == "pinned":
+            contract = diabetes_contract()
+            check_data_contract(manifest, contract)
+    except (ValueError, RuntimeError, KeyError, OSError, zipfile.BadZipFile) as exc:
+        if source != "own":
+            raise  # the pinned sample failing these checks is an integrity error, not a refusal: keep the traceback
+        shutil.rmtree(bundle, ignore_errors=True)
+        raise refused(exc, zip_path.name, "Use an artifact ZIP that this notebook's export stage wrote, unchanged, and run this cell again.") from None
     context = pd.read_parquet(members["training_context"])
     target = manifest["targetColumn"]
     values = context[target].astype(float)
@@ -976,31 +1037,41 @@ def stage_external_predict(run: Run) -> None:
     import pandas
     import sklearn
 
-    P, art, manifest, serving = external_serving(run)
+    P = package(run.root)
+    art = run.read_state("external_artifact.json", "external_predict")
+    manifest = art["manifest"]
+    for stale in (f"{STEM}_external_predictions.csv", f"{STEM}_external_result.json"):  # a refusal leaves no earlier result (DAT20)
+        (external_out(run) / stale).unlink(missing_ok=True)
     features = list(manifest["featureColumns"])
     encoders = manifest["inference"].get("categoricalEncoders", {})
     path = str(run.options.get("rows_path") or "")
     if path:
         file = Path(path)
         if not file.is_file():
-            raise FileNotFoundError(f"EXTERNAL_ROWS_PATH {path!r} does not exist in this runtime: upload the file or correct the path.")
+            raise Refused(path, "does not exist in this runtime: upload the file or correct EXTERNAL_ROWS_PATH, then run this cell again.")
         name, payload, kind = file.name, file.read_bytes(), "BYOD"
     else:
         if art["source"] != "pinned":
-            raise ValueError("The diabetes sample rows follow the pinned sample artifact's contract only. With your own artifact, set EXTERNAL_ROWS_PATH to rows that follow its manifest.")
+            raise Refused(art.get("zip") or "your artifact", "is your own artifact, and the diabetes sample rows follow the pinned sample artifact's contract only. Tick USE_OWN_ROWS (or set EXTERNAL_ROWS_PATH) with rows that follow its manifest, and run this cell again.")
         sample = external_sample_rows(features)
         buffer = _io.StringIO()
         sample.to_csv(buffer, index=False)
         name, payload, kind = f"diabetes-holdout-first-{len(sample)}-rows.csv", buffer.getvalue().encode("utf-8"), "sample"
-    rows = P.read_inference_csv(payload, features)
-    manifest_in = P.validate_inputs(rows, None, feature_columns=features, names=[name])
-    try:  # a probe that breaks the artifact's schema is refused; the finding is recorded, not swallowed
-        P.validate_inputs(rows.drop(columns=[features[0]]), None, feature_columns=features)
+    try:
+        rows = P.read_inference_csv(payload, features)
+        manifest_in = P.validate_inputs(rows, None, feature_columns=features, names=[name])
+        try:  # a probe that breaks the artifact's schema is refused; the finding is recorded, not swallowed
+            P.validate_inputs(rows.drop(columns=[features[0]]), None, feature_columns=features)
+        except ValueError as exc:
+            manifest_in["findings"].append({"input": "missing-column-probe", "verdict": "rejected", "message": str(exc)})
+        else:
+            raise RuntimeError("The missing-column probe was accepted: input validation is not working, so no prediction is written.")
+        rows = check_numeric_features(name, rows, features, encoders)
     except ValueError as exc:
-        manifest_in["findings"].append({"input": "missing-column-probe", "verdict": "rejected", "message": str(exc)})
-    else:
-        raise RuntimeError("The missing-column probe was accepted: input validation is not working, so no prediction is written.")
-    rows = check_numeric_features(name, rows, features, encoders)
+        if kind != "BYOD":
+            raise  # the bundled sample rows failing the pinned artifact's contract is a bug, not a refusal
+        raise refused(exc, name, "Fix the file and run this cell again.") from None
+    _P, art, manifest, serving = external_serving(run)  # loaded only after the rows passed their checks (DAT19)
     X, unseen = P.apply_categorical_encoder(rows[features], encoders)
     out = rows.copy()
     predictions = numpy.asarray(serving.predict(X), dtype=float)
@@ -1060,6 +1131,9 @@ def main(argv: list[str] | None = None) -> int:
     error_file.unlink(missing_ok=True)
     try:
         STAGES[args.stage](run)
+    except Refused as exc:  # the learner's input was refused, not a crash: no traceback, a dedicated exit code (DAT20)
+        error_file.write_text(json.dumps({"type": "Refused", "refused": True, "file": exc.file, "message": str(exc)}), encoding="utf-8")
+        return REFUSED_EXIT
     except BaseException as exc:  # noqa: BLE001 -- every failure is reported to the kernel with its own message
         traceback.print_exc()
         error_file.write_text(json.dumps({"type": type(exc).__name__, "message": str(exc)}), encoding="utf-8")
