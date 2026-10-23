@@ -282,6 +282,7 @@ def test_predictions_and_provenance_go_to_outputs_external_artifact(tmp_path, mo
     contract = STAGES.diabetes_contract()
     manifest = {"featureColumns": contract["featureColumns"], "targetColumn": "target", "inference": {"categoricalEncoders": {}}}
     art = {"source": "pinned", "zip": "tabiclv2_regressor_artifact.zip", "zip_sha256": PINNED_SHA256, "url": PINNED_URL, "trusted_digest": "verified (pinned SAMPLE_ARTIFACT_SHA256)", "mode": "pretrained", "manifest": manifest}
+    run.write_state("external_artifact.json", art)  # the stage checks the rows against the recorded manifest first
     monkeypatch.setattr(STAGES, "external_serving", lambda _run: (P, art, manifest, _Serving()))
     _quiet(STAGES.stage_external_predict, run)
     assert STAGES.EXTERNAL_DIR == "external_artifact"

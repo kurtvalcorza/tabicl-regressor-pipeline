@@ -388,7 +388,7 @@ def test_m2_presplit_byod_runs_through_validate(tmp_path) -> None:
     data = json.loads((run.state / "data.json").read_text())
     assert (data["sample_kind"], data["train_rows"], data["holdout_rows"], data["test_rows"]) == ("BYOD", 350, 92, 0)
     missing = _run(tmp_path / "run2", tmp_path / "outputs2", {**run.options, "paths": {"train": str(tmp_path / "nope.csv"), "val": str(val)}})
-    with pytest.raises(FileNotFoundError, match="BYOD train file .*nope.csv.* does not exist"):
+    with pytest.raises(ValueError, match="nope.csv: the BYOD train file does not exist"):
         _quiet(STAGES.stage_data, missing)
 
 
