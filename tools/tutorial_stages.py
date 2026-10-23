@@ -646,6 +646,7 @@ def stage_predict(run: Run) -> None:
         try:  # the rows are checked before the model is loaded, so a refused file costs no model load (DAT19)
             rows = P.read_inference_csv(file.read_bytes(), enc["features"])
             manifest = P.validate_inputs(rows, None, feature_columns=enc["features"], names=[file.name])
+            rows = check_numeric_features(file.name, rows, enc["features"], enc["encoders"])  # stray text is refused, not scored
         except (ValueError, OSError) as exc:
             raise refused(exc, file.name, "Fix the file and run the Section 8 cell again.") from None
         model, cond = active_model(run, enc, train)
@@ -888,11 +889,15 @@ def check_bundle_identity(P, manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def check_numeric_features(name: str, rows, features: list[str], encoders: dict[str, Any]):
-    """Columns the producer treated as numeric (no fitted encoder) must hold numbers; refuse naming the column and the
-    first bad values (TIRA-m3), instead of handing strings to the model."""
+    """Columns the producer treated as numeric (no fitted encoder) must hold numbers; refuse naming every offending
+    column, its first bad values and their CSV lines (TIRA-m3, DAT19), instead of handing strings to the model. Used by
+    Section 8 (your own rows) and Section 10 (your own rows for the external artifact). Returns the rows with those
+    columns converted to numbers."""
+    import numpy as np
     import pandas as pd
 
     out = rows.copy()
+    problems = []
     for column in features:
         if column in encoders:
             continue
@@ -901,8 +906,11 @@ def check_numeric_features(name: str, rows, features: list[str], encoders: dict[
         bad = original.notna() & converted.isna()
         if bad.any():
             examples = original[bad].astype(str).unique().tolist()[:5]
-            raise ValueError(f"{name}: numeric feature {column!r} has {int(bad.sum())} non-numeric value(s), e.g. {examples}. Fix them (leave missing cells empty).")
+            lines = (np.flatnonzero(bad.to_numpy()) + 2)[:5].tolist()  # +2: the header is CSV line 1
+            problems.append(f"numeric feature {column!r} has {int(bad.sum())} non-numeric value(s), e.g. {examples} (file lines {lines})")
         out[column] = converted
+    if problems:
+        raise ValueError(f"{name}: {'; '.join(problems)}. A numeric feature must hold numbers (leave missing cells empty).")
     return out
 
 

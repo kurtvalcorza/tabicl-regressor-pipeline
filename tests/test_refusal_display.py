@@ -225,6 +225,122 @@ def test_section8_own_rows_refusals_are_one_clean_line(tmp_path, rows, needle) -
     assert not stale.exists()  # DAT20: no earlier prediction left on disk to be read as this one
 
 
+STUB_MODEL = """
+
+# ---- test stub (tests/test_refusal_display.py): a stand-in for the TabICL model, so Section 8 runs on CI's dependencies.
+import sys as _sys
+import types as _types
+from pathlib import Path as _Path
+
+try:
+    import torch as _torch  # noqa: F401
+except ImportError:  # CI has no torch: the stage's runtime record only reads its version
+    _torch = _types.ModuleType("torch")
+    _torch.__version__ = "stub"
+    _torch.Tensor = type("Tensor", (), {})  # scipy probes torch.Tensor when torch is in sys.modules
+    _sys.modules["torch"] = _torch
+_LOADED = _Path(__file__).resolve().parents[2] / "model_loaded"
+
+
+class TabICLRegressionPipeline:
+    device = "cpu"
+
+    @classmethod
+    def from_pretrained(cls, **kwargs):
+        _LOADED.write_text("the model was loaded", encoding="utf-8")
+        return cls()
+
+    def fit(self, X, y):
+        return self
+
+    def predict(self, X):
+        import numpy as _np
+
+        return _np.asarray(X, dtype=float).sum(axis=1)  # raises on a string: only numbers may reach the model
+"""
+
+
+def _stub_model(ns: dict) -> Path:
+    """Replace the model in the run's copy of the package and record a conditioned pretrained model, so the real
+    ``predict`` stage can score without torch or the checkpoint. Returns the file the stub writes when it is loaded."""
+    run = ns["ROOT"]
+    init = run / "src" / "tabicl_regressor_pipeline" / "__init__.py"
+    init.write_text(init.read_text(encoding="utf-8") + STUB_MODEL, encoding="utf-8")
+    dist = run / "src" / "tabicl-0.0.0.dist-info"
+    dist.mkdir()
+    (dist / "METADATA").write_text("Metadata-Version: 2.1\nName: tabicl\nVersion: 0.0.0\n", encoding="utf-8")
+    holdout = {"mae": 1.0, "mse": 1.0, "rmse": 1.0, "r2": 0.0, "pearsonr": 0.0}
+    condition = {"active_mode": "pretrained", "active_checkpoint": None, "selection": "pretrained", "eval_metric": "mse", "fine_tune": {"ran": False}, "pretrained_holdout": holdout, "pretrained_test": None, "candidate_holdout": None, "candidate_test": None, "device": "cpu"}
+    (run / "state" / "condition.json").write_text(json.dumps(condition), encoding="utf-8")
+    (ns["OUTPUTS"] / f"{STEM}_evaluation_report.json").write_text("{}", encoding="utf-8")
+    return run / "model_loaded"
+
+
+def _own_rows(tmp_path: Path, stray: dict[tuple[int, str], str]) -> bytes:
+    """Six unlabelled diabetes rows; ``stray`` puts text into (data row, column) cells (data row 0 is CSV line 2)."""
+    from sklearn.datasets import load_diabetes
+
+    frame = load_diabetes(as_frame=True, scaled=False).frame.drop(columns="target").head(6).astype(object)
+    for (row, column), value in stray.items():
+        frame.loc[row, column] = value
+    path = tmp_path / "own_rows.csv"
+    frame.to_csv(path, index=False)
+    return path.read_bytes()
+
+
+def _section8(ns: dict, payload: bytes, then: tuple[str, ...] = ("run_stage('export')",)):
+    cell = _set(_cell("RUN_NEW_DATA_INFERENCE = False  # @param"), "RUN_NEW_DATA_INFERENCE", True)
+    with _colab({"own_rows.csv": payload}):
+        return _run_all(ns, [cell, *then])
+
+
+@pytest.mark.parametrize(
+    ("stray", "needles"),
+    [
+        ({(2, "bmi"): "abc"}, ["numeric feature 'bmi' has 1 non-numeric value(s), e.g. ['abc'] (file lines [4])"]),
+        (
+            {(1, "bp"): "high", (4, "bp"): "12 mmHg", (3, "s5"): "?"},
+            ["numeric feature 'bp' has 2 non-numeric value(s), e.g. ['high', '12 mmHg'] (file lines [3, 6])", "numeric feature 's5' has 1 non-numeric value(s), e.g. ['?'] (file lines [5])"],
+        ),
+    ],
+    ids=["one-column", "two-columns"],
+)
+def test_section8_stray_text_in_own_rows_is_refused_before_scoring(tmp_path, stray, needles) -> None:
+    """A numeric feature holding text in your own Section 8 rows is refused in one line naming the file, the columns,
+    the values and their CSV lines; the model is never loaded, nothing is scored or written, and Run all stops."""
+    ns = _kernel(tmp_path)
+    _accepted(tmp_path, ns)
+    loaded = _stub_model(ns)
+    stale = [ns["OUTPUTS"] / f"{STEM}_predictions.csv", ns["OUTPUTS"] / f"{STEM}_result.json"]
+    for path in stale:
+        path.write_text("old", encoding="utf-8")
+    raised, shown, ran = _section8(ns, _own_rows(tmp_path, stray))
+    line = _assert_refused(raised, shown, ran, "own_rows.csv")
+    assert all(needle in line for needle in needles), line
+    assert "Section 8 cell again" in line
+    assert not loaded.exists(), "the model must not be loaded for refused rows"
+    assert not any(path.exists() for path in stale)  # nothing scored, no earlier result left on disk (DAT20)
+    error = json.loads((ns["ROOT"] / "state" / "predict.error.json").read_text(encoding="utf-8"))
+    assert error["refused"] is True and error["file"] == "own_rows.csv"
+
+
+def test_section8_clean_own_rows_still_score(tmp_path) -> None:
+    """The same file without stray text passes the check and is scored by the real predict stage."""
+    ns = _kernel(tmp_path)
+    _accepted(tmp_path, ns)
+    loaded = _stub_model(ns)
+    raised, shown, ran = _section8(ns, _own_rows(tmp_path, {}), then=())
+    assert raised is None and ran == 1, shown
+    assert "Refused" not in shown and "Traceback" not in shown
+    assert loaded.exists()
+    import pandas as pd
+
+    predictions = pd.read_csv(ns["OUTPUTS"] / f"{STEM}_predictions.csv")
+    assert len(predictions) == 6 and predictions["prediction"].notna().all()
+    result = json.loads((ns["OUTPUTS"] / f"{STEM}_result.json").read_text(encoding="utf-8"))
+    assert result["new_data"]["input"] == "own_rows.csv" and result["new_data"]["rows"] == 6
+
+
 # ---------------------------------------------------------------- Section 10: your own artifact ZIP and rows
 
 
