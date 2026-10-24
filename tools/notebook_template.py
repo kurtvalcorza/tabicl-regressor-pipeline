@@ -45,7 +45,7 @@ ENVIRONMENT = {
     "package": "tabicl_regressor_pipeline",
     "repo_name": REPO,
     "weights_key": "tabicl-regressor-v2",
-    "modules": ["__init__.py", "api.py"],
+    "modules": ["__init__.py", "api.py", "safetensors_shim.py"],
     "entry_module": "api.py",
     "lock": "tutorials/requirements-colab.lock.txt",
     "managed_python": "3.12.12",
@@ -207,7 +207,7 @@ TEMPLATE = {
                 "| **Linear regression / LightGBM / random forest** | Classical models trained on the same support rows. |\n"
                 "| **Blend** | A weighted average of TabICLv2's and LightGBM's predictions, weight chosen on the holdout. |\n"
                 "| **Categorical encoder** | Ordinal codes fitted on the support rows only; unseen values get an 'unknown' code and are counted. |\n"
-                "| **Serving bundle** | A ZIP of `artifact.json`, `checkpoints/best.ckpt` and `training_context.parquet`. |\n"
+                "| **Serving bundle** | A ZIP (format `tabicl-dimer-regressor-v2`) of `artifact.json`, `checkpoints/best.safetensors` and `training_context.parquet`. |\n"
                 "| **Digest (SHA-256)** | A fingerprint of a file's bytes. |\n"
                 "| **Hash-locked environment / stage** | The isolated Python environment every stage runs in; one workflow step run as its own process. |\n"
                 "| **BYOD** | Bring Your Own Data. |\n\n"
@@ -335,9 +335,10 @@ TEMPLATE = {
                 "an ordinary regressor with the same inference ensemble for a fair comparison, and the candidate replaces the "
                 "pretrained model **only** if it beats it on the holdout (`compare_metric`) and the holdout has at least "
                 "`MIN_SELECTION_HOLDOUT_ROWS` = 50 rows. The independent test is evidence only; a worse test result is printed as a "
-                "warning and never changes the selection. TabICL writes one checkpoint per epoch; the stage keeps `best.ckpt` only. "
-                "The fine-tuned `best.ckpt` may remain larger than the base checkpoint because upstream training state can be "
-                "embedded; the format is kept for checkpoint compatibility. On a CPU runtime the stage skips fine-tuning and records "
+                "warning and never changes the selection. TabICL writes its checkpoints itself with `torch.save` (`best.ckpt` plus one per "
+                "epoch). Right after training, the stage reads `best.ckpt` once with `torch.load(weights_only=True)`, keeps only "
+                "its `config` and `state_dict` (the optimizer state is dropped) as `best.safetensors`, and deletes every `.ckpt`; "
+                "every later step, the export included, reads the safetensors file only. On a CPU runtime the stage skips fine-tuning and records "
                 "why in the result.\n\n"
                 "**Reproducibility boundary.** The split seed and the TabICL ensemble seed are fixed; that makes the partitioning and "
                 "the estimator configuration repeatable, but not bitwise-identical floating-point results across devices, library "
@@ -440,7 +441,8 @@ TEMPLATE = {
         {
             "md": (
                 "## 9. Export a DIMER-style serving bundle, then prove a fresh reload · [Engineering]\n\n"
-                "The ZIP carries the minimum serving contract the DIMER pipeline expects: `checkpoints/best.ckpt`, "
+                "The ZIP carries the minimum serving contract the DIMER pipeline expects (bundle format `tabicl-dimer-regressor-v2`): "
+                "`checkpoints/best.safetensors` (the converted fine-tune, or for `pretrained` the converted base whose SHA-256 is pinned), "
                 "`training_context.parquet`, and `artifact.json`. The training context is *required*: TabICL is still an in-context "
                 "learner at serve time, so whoever loads the bundle must hand the model the same rows you evaluated with, and the "
                 "context inherits the source data's confidentiality, licensing, retention and disclosure obligations. "
@@ -536,17 +538,20 @@ TEMPLATE = {
                 "from this repository's GitHub release `sample-artifact-diabetes-v1` (no account or token). It is the export of a "
                 "recorded hosted T4 run of this notebook's default path (the diabetes sample, pretrained mode) at commit `6b95e73`; "
                 "the release notes name the run record, and the asset is never replaced (a changed artifact gets a new tag). The "
-                "stage prints the URL, the pinned SHA-256, the producer and the format `tabicl-dimer-regressor-v1` **before** it "
+                "stage prints the URL, the pinned SHA-256, the producer and the format (this pinned asset is a `tabicl-dimer-regressor-v1` "
+                "bundle; its re-issue in the v2 layout is staged as `sample-artifact-diabetes-v2`) **before** it "
                 "downloads anything, then refuses the file unless its SHA-256 equals the pinned value. Only then does "
                 "`safe_extract_zip` copy the members one by one (no absolute paths, `..`, symlinks or oversize archives); "
                 "`validate_artifact_runtime` checks the format and the `tabicl`/`torch` versions; the manifest must name the pinned "
                 "base checkpoint; `verify_artifact_bundle` checks the member allowlist, sizes and digests; and the manifest's "
                 "features and target must equal the diabetes default path's. Any failed check stops the run, and no prediction file "
                 "is written.\n\n"
-                "**Trust boundary.** The artifact's `checkpoints/best.ckpt` is deserialised by `tabicl` (a PyTorch/Lightning "
-                "checkpoint, which can carry code), so loading an artifact means trusting its producer. The pinned SHA-256 binds this "
-                "download to the file the maintainer published; for a `pretrained` artifact the checkpoint must also be, byte for "
-                "byte, the base checkpoint whose digest Section 3 verified. Nothing is deserialised before these checks pass. For a "
+                "**Trust boundary.** A v2 artifact's `checkpoints/best.safetensors` holds tensors and a JSON config only and is "
+                "loaded without `torch.load`. A v1 artifact (such as this pinned asset) carries a pickle `checkpoints/best.ckpt`; that "
+                "layout is deprecated and is read only with `torch.load(weights_only=True)`, with a `DeprecationWarning`. The "
+                "pinned SHA-256 binds this download to the file the maintainer published; for a `pretrained` artifact the checkpoint "
+                "must also be, byte for byte, the pinned base (v2: its safetensors conversion; v1: the source checkpoint Section 3 "
+                "verified). Nothing is deserialised before these checks pass. For a "
                 "`fine-tuned` artifact of your own, the only binding is a digest you received from its producer through a separate "
                 "channel (`EXPECTED_ZIP_SHA256`). Files stay inside this runtime.\n\n"
                 "**Optional: your own artifact (off by default).** Set `ARTIFACT_SOURCE` to `My own artifact ZIP` and give "

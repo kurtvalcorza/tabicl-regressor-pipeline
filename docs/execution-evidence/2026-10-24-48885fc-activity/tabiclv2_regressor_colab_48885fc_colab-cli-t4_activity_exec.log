@@ -1,0 +1,125 @@
+[colab] Parsing notebook '<local-run-dir>/tabiclv2_regressor_colab_48885fc_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/14 - Infrastructure: check the runtime, accelerator and disk; create (or keep) the run directory...
+{'accelerator': 'Tesla T4, 15360 MiB', 'kernel_python': '3.13.16', 'run_directory': '/content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec', 'outputs': '/content/outputs', 'weights': '/content/weights', 'environment_root': '/tmp/dimer_uv', 'free_gib': {'weights': 193.2, 'environment': 193.2}}
+[colab] Executing cell 2/14 - Infrastructure: write and verify the carried package, stage runner, lock, manifest and samples...
+{'carried_files': 8, 'verified': True, 'repository': 'kurtvalcorza/tabicl-regressor-pipeline', 'revision': 'a43d22692815d4f0acf599c16e67f4d767c346d8', 'generator': 'build_notebook.py/3.0-tabular'}
+[colab] Executing cell 3/14 - Infrastructure: build (or reuse) the isolated locked environment and define the stage runner...
+{'notebook_source': 'a43d22692815d4f0acf599c16e67f4d767c346d8', 'python': '3.12.12', 'torch': '2.11.0', 'tabicl': '2.1.1', 'numpy': '2.5.3', 'pandas': '2.3.3', 'scikit-learn': '1.9.0', 'lightgbm': '4.7.0', 'cuda': True, 'locked_packages': 85, 'environment': '/tmp/dimer_uv/venv-a5cb48abb672a334', 'environment_reused': False, 'setup_seconds': 69}
+[colab] Executing cell 4/14 - Infrastructure: stage and digest-verify the pinned checkpoint...
+Running stage 'weights' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/weights.log
+{'model_id': 'jingang/TabICL', 'revision': '4dcd344ece2c00be9e831fdd35bed57b5ad83e19', 'license': 'bsd-3-clause', 'files': 1, 'total_bytes': 114324594}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{'weights_dir': '/content/weights/tabicl-regressor-v2', 'fetched': ['tabicl-regressor-v2-20260212.ckpt']}
+{'verified_files': 1, 'revision': '4dcd344ece2c00be9e831fdd35bed57b5ad83e19', 'sha256': ['0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a']}
+{'served_weights': 'tabicl-regressor-v2-20260212.safetensors', 'served_sha256': 'ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe', 'pinned': 'ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe'}
+[colab] Executing cell 5/14 - tabiclv2_regressor-14...
+Running stage 'data' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/data.log
+{'sample_kind': 'sample', 'name': 'sklearn-diabetes', 'source': 'Sample: Diabetes', 'target': 'target', 'train_rows': 265, 'holdout_rows': 88, 'test_rows': 89, 'csv_sha256': 'abeb2910e0d6cf74b7ae9225743d248ca5d3da1c55a10a675680d58ac7d2b7fc', 'dropped_missing_target_rows_before_split': {}, 'text_columns': []}
+[colab] Executing cell 6/14 - tabiclv2_regressor-17...
+Running stage 'validate' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/validate.log
+{'ceilings': {'MIN_TRAIN_ROWS': 50, 'MIN_EVAL_ROWS': 2, 'MAX_TRAIN_ROWS': 50000, 'MAX_FEATURES': 2000}, 'target': 'finite numbers that vary; blank targets dropped and counted'}
+{
+  "id": "sklearn-diabetes:train",
+  "mode": "fit",
+  "rows": 265,
+  "dropped_non_finite_target_rows": 0,
+  "feature_columns": [
+    "age",
+    "sex",
+    "bmi",
+    "bp",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s6"
+  ],
+  "categorical_columns": [],
+  "missing_value_columns": {},
+  "target_summary": {
+    "min": 25.0,
+    "max": 346.0,
+    "mean": 151.02641509433963,
+    "distinct": 176
+  }
+}
+findings: [{'input': 'too-few-rows-probe', 'verdict': 'rejected', 'message': 'need at least 50 labelled rows, got 49'}]
+{'dropped_non_finite_target_rows': {'train': 0, 'holdout': 0, 'test': 0}, 'unseen_categorical_values': {'holdout': {}, 'test': {}}, 'encoded_categoricals': []}
+{'train': 265, 'holdout': 88, 'test': 89, 'features': 10, 'training_target': {'min': 25.0, 'max': 346.0, 'mean': 151.03}}
+training-mean baseline on the holdout {'mae': 67.5162, 'mse': 5800.5533, 'rmse': 76.1614, 'r2': -0.0062}
+[colab] Executing cell 7/14 - tabiclv2_regressor-20...
+Running stage 'condition' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/condition.log
+pretrained holdout {'mae': 38.8274, 'mse': 2408.1408, 'rmse': 49.0728, 'r2': 0.5823, 'pearsonr': 0.766}
+pretrained independent test {'mae': 44.7756, 'mse': 2971.2319, 'rmse': 54.509, 'r2': 0.4863, 'pearsonr': 0.7185}
+Baseline val mae: -38.6600
+Fine-tune:   0%|          | 0/3 [00:00<?, ?it/s]
+Fine-tune:   0%|          | 0/3 [00:00<?, ?it/s, train_loss=0.1817, val_mae=-38.6600, best=-38.6600, s/epoch=0.5]
+Fine-tune:  33%|███▎      | 1/3 [00:01<00:02,  1.43s/it, train_loss=0.1817, val_mae=-38.6600, best=-38.6600, s/epoch=0.5]
+Fine-tune:  33%|███▎      | 1/3 [00:01<00:02,  1.43s/it, train_loss=0.2059, val_mae=-39.0376, best=-38.6600, s/epoch=0.1]
+Fine-tune:  33%|███▎      | 1/3 [00:02<00:05,  2.76s/it, train_loss=0.2059, val_mae=-39.0376, best=-38.6600, s/epoch=0.1]
+candidate holdout {'mae': 38.8274, 'mse': 2408.1408, 'rmse': 49.0728, 'r2': 0.5823, 'pearsonr': 0.766}
+{'recommended_for_export': 'pretrained', 'selection_basis': 'holdout:mae', 'fine_tune': {'requested': True, 'ran': True, 'epochs_requested': 3, 'time_limit_seconds': 300, 'checkpoint_bytes': 114223596, 'checkpoint_sha256': 'cae9ee26f832ed91a1f52a3d80a4443173380f2e33ccdb8eb26c988b6afcc7fb', 'ckpt_source_sha256': '4dc558e444ea0ff62c06463a1fb8ba1cc31315d608fd8ba74c823de0dba89ae3'}, 'device': 'cuda'}
+[colab] Executing cell 8/14 - tabiclv2_regressor-23...
+Running stage 'report' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/report.log
+tabicl_pretrained                mae=38.83 rmse=49.07 r2=0.582
+lightgbm                         mae=44.94 rmse=57.55 r2=0.426
+random_forest                    mae=42.28 rmse=53.97 r2=0.495
+standardised_linear_regression   mae=38.22 rmse=49.15 r2=0.581
+{'latency_ms_median_of_5': {'tabicl': 156.85, 'lightgbm': 1.59, 'random_forest': 10.34}, 'rows': 88, 'device': 'cuda'}
+{'tabicl_vs_linear_holdout': {'mse_delta': -7.6, 'paired_se': 92.6, 'reading': 'negative favours TabICLv2; |delta| < 2 SE is within noise'}}
+{'blend_objective': 'minimise holdout RMSE', 'weight_tabicl': 1.0, 'blend_holdout': {'mae': 38.8274, 'mse': 2408.1409, 'rmse': 49.0728, 'r2': 0.5823, 'pearsonr': 0.766}, 'mse_delta_vs_tabicl': 0.0, 'paired_se': 0.0}
+{'independent_test': {'tabicl': {'mae': 44.7756, 'mse': 2971.2319, 'rmse': 54.509, 'r2': 0.4863, 'pearsonr': 0.7185}, 'lightgbm': {'mae': 47.7707, 'mse': 3651.0186, 'rmse': 60.4237, 'r2': 0.3688, 'pearsonr': 0.6278}, 'standardised_linear_regression': {'mae': 46.724, 'mse': 3245.6114, 'rmse': 56.9703, 'r2': 0.4389, 'pearsonr': 0.6844}, 'blend': {'mae': 44.7756, 'mse': 2971.2319, 'rmse': 54.509, 'r2': 0.4863, 'pearsonr': 0.7185}, 'blend_mse_delta_vs_tabicl': 0.0, 'paired_se': 0.0}}
+{
+  "verdict": "sample-sanity",
+  "reason": "88 labelled holdout row(s) from one seeded split; tutorial evidence, not a benchmark",
+  "selection": "holdout:mae",
+  "n_holdout": 88,
+  "n_test": 89,
+  "interpretation": "88 holdout rows; an MSE difference smaller than about twice its paired standard error is within split noise, and no dispersion over splits was measured. A standardised linear regression is the classical reference on this table."
+}
+[colab] Executing cell 9/14 - tabiclv2_regressor-26...
+Running stage 'predict' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/predict.log
+No new-data file: the first eight holdout rows (already scored in Section 7) are scored instead; their unlabelled copy is written to outputs/tabiclv2_regressor_new_rows.csv
+ row_id     age     sex     bmi      bp      s1      s2      s3      s4      s5      s6  prediction
+    285  0.0126 -0.0446 -0.0202 -0.0160  0.0122  0.0212 -0.0765  0.1081  0.0599 -0.0218    182.7017
+    255  0.0018 -0.0446 -0.0655 -0.0057 -0.0071 -0.0195  0.0413 -0.0395 -0.0033  0.0072    104.7317
+    370  0.0199 -0.0446 -0.0579 -0.0573 -0.0016 -0.0126  0.0744 -0.0395 -0.0612 -0.0756     74.3926
+    349  0.0018  0.0507 -0.0579 -0.0435 -0.0965 -0.0470 -0.0986  0.0343 -0.0612 -0.0715    107.7713
+     57 -0.0273 -0.0446 -0.0633 -0.0504 -0.0896 -0.1043  0.0523 -0.0764 -0.0562 -0.0674     93.5872
+    124 -0.0055 -0.0446  0.0240  0.0081 -0.0346 -0.0389  0.0229 -0.0395 -0.0160 -0.0135    157.4960
+    331  0.0817  0.0507 -0.0256 -0.0367 -0.0704 -0.0464 -0.0397 -0.0026 -0.0412 -0.0052    117.1874
+    193  0.0090  0.0507 -0.0051 -0.0642  0.0700  0.0839 -0.0397  0.0712  0.0395  0.0196    136.1901
+[colab] Executing cell 10/14 - tabiclv2_regressor-29...
+Running stage 'export' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/export.log
+{'artifact_zip': '/content/outputs/tabiclv2_regressor_artifact.zip', 'zip_sha256': '28692a90373dbae356c6d9dbe03f97739a56d9420df4cee06a5501b028e5a826', 'mode': 'pretrained', 'checkpoint_bytes': 114223620, 'training_context_sha256': '25f93f53633fed622b63522e5db7667c78538147c564a7824544d6d4b5592382'}
+Trusted digest of this export: whoever loads tabiclv2_regressor_artifact.zip elsewhere checks it against '28692a90373dbae356c6d9dbe03f97739a56d9420df4cee06a5501b028e5a826' (EXPECTED_ZIP_SHA256 in Section 10). Section 10 itself never loads this run's export; it loads the pinned sample artifact.
+Running stage 'reload' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/reload.log
+{'reload_dir': '/content/outputs/artifact-reload', 'process': 'fresh (separate from the exporting stage)', 'max_abs_prediction_difference': 0.0}
+PASS: bundle extracted safely, digests verified, regressor rebuilt from the bundle alone; predictions equivalent (rtol=1e-05, atol=1e-07).
+[colab] Executing cell 11/14 - tabiclv2_regressor-33...
+Running stage 'external_artifact' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/external_artifact.log
+{'artifact': 'pinned sample artifact (created outside this run)', 'url': 'https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip', 'pinned_sha256': '3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828', 'producer': {'notebook': 'tutorials/tabiclv2_regressor_colab.ipynb (default path: Sample: Diabetes)', 'commit': '6b95e73f4f87456c825128418073d4f8293355f2', 'run': 'recorded hosted Colab T4 run; the release notes of the tag name the run record (SART8)', 'release_tag': 'sample-artifact-diabetes-v1'}, 'format': 'tabicl-dimer-regressor-v2', 'integrity': 'SHA-256 of the whole ZIP, checked before extraction; then per-member sizes and digests from artifact.json'}
+{'source': 'pinned', 'zip': 'external_artifact.zip', 'zip_sha256': '3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828', 'trusted_digest': 'verified (pinned SAMPLE_ARTIFACT_SHA256)', 'mode': 'pretrained', 'checkpoint_binding': 'identical to the pinned base checkpoint (deprecated v1 pickle layout) (SHA-256 checked)', 'data_contract': 'diabetes default path (features and target match)'}
+{'artifactFormat': 'tabicl-dimer-regressor-v1', 'tabiclVersion': '2.1.1', 'selection': 'holdout:mae', 'base': 'tabicl-regressor-v2-20260212.ckpt', 'base_revision': '4dcd344ece2c', 'producer_runtime': {'pythonVersion': '3.12.12', 'torchVersion': '2.11.0+cu130', 'pandasVersion': '2.3.3', 'pyarrowVersion': '25.0.1', 'scikitLearnVersion': '1.9.0', 'device': 'cuda'}, 'producer_notebook_source': {'repository': 'kurtvalcorza/tabicl-regressor-pipeline', 'revision': '453066a03746d654a8d031975c6842e5a1f33e4c', 'generator': 'build_notebook.py/3.0-tabular'}}
+{'featureColumns': 10, 'targetColumn': 'target', 'contextRows': 265, 'contextTarget': {'min': 25.0, 'max': 346.0, 'mean': 151.03}, 'nEstimators': 8, 'categoricalEncoders': []}
+[colab] Executing cell 12/14 - tabiclv2_regressor-36...
+Running stage 'external_reconstruct' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/external_reconstruct.log
+{'context_rows': 265, 'context_target': {'min': 25.0, 'max': 346.0, 'mean': 151.03}, 'features': 10, 'target': 'target', 'device': 'cuda', 'source': 'artifact', 'checkpoint_binding': 'identical to the pinned base checkpoint (deprecated v1 pickle layout) (SHA-256 checked)', 'categorical_encoders_restored': []}
+[colab] Executing cell 13/14 - tabiclv2_regressor-38...
+Running stage 'external_predict' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/external_predict.log
+ row_id     age     sex     bmi      bp      s1      s2      s3      s4      s5      s6  prediction
+    285  0.0126 -0.0446 -0.0202 -0.0160  0.0122  0.0212 -0.0765  0.1081  0.0599 -0.0218    182.7016
+    255  0.0018 -0.0446 -0.0655 -0.0057 -0.0071 -0.0195  0.0413 -0.0395 -0.0033  0.0072    104.7317
+    370  0.0199 -0.0446 -0.0579 -0.0573 -0.0016 -0.0126  0.0744 -0.0395 -0.0612 -0.0756     74.3926
+    349  0.0018  0.0507 -0.0579 -0.0435 -0.0965 -0.0470 -0.0986  0.0343 -0.0612 -0.0715    107.7714
+     57 -0.0273 -0.0446 -0.0633 -0.0504 -0.0896 -0.1043  0.0523 -0.0764 -0.0562 -0.0674     93.5872
+    124 -0.0055 -0.0446  0.0240  0.0081 -0.0346 -0.0389  0.0229 -0.0395 -0.0160 -0.0135    157.4960
+    331  0.0817  0.0507 -0.0256 -0.0367 -0.0704 -0.0464 -0.0397 -0.0026 -0.0412 -0.0052    117.1875
+    193  0.0090  0.0507 -0.0051 -0.0642  0.0700  0.0839 -0.0397  0.0712  0.0395  0.0196    136.1901
+{'outputs': ['outputs/external_artifact/tabiclv2_regressor_external_predictions.csv', 'outputs/external_artifact/tabiclv2_regressor_external_result.json'], 'input_kind': 'sample', 'artifact_source': 'pinned', 'zip_sha256': '3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828'}
+[colab] Executing cell 14/14 - tabiclv2_regressor-41...
+Running stage 'activity' in the isolated environment; log: /content/dimer_runs/tabiclv2_regressor/aa2349b3b4ec/logs/activity.log
+{'changed': {'n_estimators': [8, 32]}, 'holdout': {'rows': 88, 'canonical': {'mae': 38.8274, 'mse': 2408.1409, 'rmse': 49.0728, 'r2': 0.5823, 'pearsonr': 0.766}, 'changed': {'mae': 38.7106, 'mse': 2400.7893, 'rmse': 48.9978, 'r2': 0.5836, 'pearsonr': 0.7665}, 'mse_delta_changed_minus_canonical': -7.3516, 'paired_se': 6.6904, 'within_two_se': True}, 'independent_test': {'rows': 89, 'canonical': {'mae': 44.7756, 'mse': 2971.2319, 'rmse': 54.509, 'r2': 0.4863, 'pearsonr': 0.7185}, 'changed': {'mae': 44.6211, 'mse': 2963.1411, 'rmse': 54.4347, 'r2': 0.4877, 'pearsonr': 0.72}, 'mse_delta_changed_minus_canonical': -8.0908, 'paired_se': 5.4178, 'within_two_se': True}}
+{'canonical_outputs_unchanged': True}
+[colab] Saving notebook with outputs to '<local-run-dir>/tabiclv2_regressor_colab_48885fc_colab-cli-t4_output.ipynb'...

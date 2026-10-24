@@ -14,7 +14,7 @@
 
 ## Release status
 
-**Candidate.** **2026-10-24 (safetensors serving):** the E2E notebook blob is now `7baea7e2` (code commit `8a48d76`): the base model is served from a pinned safetensors conversion of the checkpoint (`tabicl-regressor-v2-20260212.safetensors`, SHA-256 `ad4b0ec0…`), read once from the digest-verified `.ckpt` with `torch.load(weights_only=True)`. Predictions are identical to the `.ckpt` load on CPU. Its hosted default-path run and optional-activity run (a `RUN_ACTIVITY = True` run copy) are recorded: Colab CLI scripted runs on a fresh T4, commit `e80d976`, 2026-10-24, both PASS, 14/14 code cells, 0 errors. The `9610654e` runs named below are history for it (REL14); it stays Candidate until REL12 and REL2 are recorded. Static/unit checks do not constitute clean-runtime notebook evidence. The previous repository-installing pair was executed by CI through real kernels. The previous E2E blob `9610654e` (regenerated from `6c9f84c`: Section 8 refuses text in a numeric feature of your own rows before scoring them, in one `Refused: <file>: <reason>` line naming the columns, values and CSV lines; DAT19/DAT20) has a recorded hosted default-path run (Colab CLI scripted run on a fresh T4, 2026-10-23, commit `ff3532c`, PASS, 14/14 code cells, 0 errors) and a recorded hosted run of the optional activity (`RUN_ACTIVITY = True`, same blob, PASS). The runs of the previous blobs (`de171c3d` at `936cc5c`, `9595d23b` at `e848401`, `8cb91a8e` at `1e1a1ab`) are history, not evidence for the current blob (REL14). It stays Candidate until a BYOD run (one input accepted, one refused; REL12) and a browser run of the interactive journeys (REL2) are recorded. Complete `docs/release-verification.md` against the exact release revision before calling either notebook release-grade.
+**Candidate.** **2026-10-24 (bundle format v2):** the current E2E notebook blob is `c49e98e7` (commit `48885fc`, code commit `a43d226`, PR #35): serving bundles carry `checkpoints/best.safetensors` (format `tabicl-dimer-regressor-v2`), v1 bundles stay readable with `torch.load(weights_only=True)` and a `DeprecationWarning`, and the pinned sample artifact stays `sample-artifact-diabetes-v1` until its staged re-issue `sample-artifact-diabetes-v2` is published; its hosted default-path run and optional-activity run (a `RUN_ACTIVITY = True` run copy) are recorded: Colab CLI scripted runs on a fresh T4, commit `48885fc`, 2026-10-24, both PASS, 14/14 code cells, 0 errors; the `7baea7e2` runs described next are history for it (REL14), and it stays Candidate until REL12 and REL2 are recorded. **2026-10-24 (safetensors serving):** the E2E notebook blob is now `7baea7e2` (code commit `8a48d76`): the base model is served from a pinned safetensors conversion of the checkpoint (`tabicl-regressor-v2-20260212.safetensors`, SHA-256 `ad4b0ec0…`), read once from the digest-verified `.ckpt` with `torch.load(weights_only=True)`. Predictions are identical to the `.ckpt` load on CPU. Its hosted default-path run and optional-activity run (a `RUN_ACTIVITY = True` run copy) are recorded: Colab CLI scripted runs on a fresh T4, commit `e80d976`, 2026-10-24, both PASS, 14/14 code cells, 0 errors (PR #34); the `9610654e` runs named below are history for it (REL14). Static/unit checks do not constitute clean-runtime notebook evidence. The previous repository-installing pair was executed by CI through real kernels. The previous E2E blob `9610654e` (regenerated from `6c9f84c`: Section 8 refuses text in a numeric feature of your own rows before scoring them, in one `Refused: <file>: <reason>` line naming the columns, values and CSV lines; DAT19/DAT20) has a recorded hosted default-path run (Colab CLI scripted run on a fresh T4, 2026-10-23, commit `ff3532c`, PASS, 14/14 code cells, 0 errors) and a recorded hosted run of the optional activity (`RUN_ACTIVITY = True`, same blob, PASS). The runs of the previous blobs (`de171c3d` at `936cc5c`, `9595d23b` at `e848401`, `8cb91a8e` at `1e1a1ab`) are history, not evidence for the current blob (REL14). It stays Candidate until a BYOD run (one input accepted, one refused; REL12) and a browser run of the interactive journeys (REL2) are recorded. Complete `docs/release-verification.md` against the exact release revision before calling either notebook release-grade.
 
 ## The model: TabICLv2
 
@@ -234,7 +234,7 @@ tabicl_regressor/
 ├── artifact.json            complete inference contract (schema, inference block, encoders, digests)
 ├── training_context.parquet the in-context support table used at inference time
 ├── checkpoints/
-│   └── best.ckpt            the fine-tuned TabICLv2 checkpoint
+│   └── best.safetensors     the fine-tuned TabICLv2 weights (bundle format v2; converted from tabicl's best.ckpt)
 ├── evaluation/
 │   └── report.json          validation / optional test metrics
 ├── logs/
@@ -250,7 +250,7 @@ identifier with its HF revision / SHA-256 / source (`dimer-provided` / `pinned-b
 column, and the training hyperparameters.
 
 DIMER resolves every exportable file by the **`artifacts` block** in `result.json`, keyed by a
-`/data`-relative path (`workbench.domain._resolve_result_artifact`). `modelArtifact` (`best.ckpt`)
+`/data`-relative path (`workbench.domain._resolve_result_artifact`). `modelArtifact` (`best.safetensors`, with its `sha256`)
 is **mandatory** — export-to-repository and model-download report *"No model artifact found"*
 without it — and `trainingContext` (`training_context.parquet`) is the second file the in-context
 learner needs at serve time; `manifest`, `evaluationReport`, and `logArtifact` accompany them.
@@ -266,7 +266,7 @@ learner needs at serve time; `manifest`, `evaluationReport`, and `logArtifact` a
     "featureCount": 17, "device": "cuda:0", "mode": "fine-tune"
   },
   "artifacts": {
-    "modelArtifact":    { "path": "fine-tuning/<run_id>/tabicl_regressor/checkpoints/best.ckpt",    "name": "best.ckpt",                "contentType": "application/octet-stream", "sizeBytes": 0 },
+    "modelArtifact":    { "path": "fine-tuning/<run_id>/tabicl_regressor/checkpoints/best.safetensors", "name": "best.safetensors", "contentType": "application/octet-stream", "sizeBytes": 0, "sha256": "…" },
     "trainingContext":  { "path": "fine-tuning/<run_id>/tabicl_regressor/training_context.parquet", "name": "training_context.parquet", "contentType": "application/octet-stream", "sizeBytes": 0 },
     "manifest":         { "path": "fine-tuning/<run_id>/tabicl_regressor/artifact.json",            "name": "artifact.json",            "contentType": "application/json",         "sizeBytes": 0 },
     "evaluationReport": { "path": "fine-tuning/<run_id>/tabicl_regressor/evaluation/report.json",   "name": "report.json",              "contentType": "application/json",         "sizeBytes": 0 },
@@ -291,16 +291,16 @@ fine-tuned checkpoint and the training context**. A fresh-environment loader rec
 exact scored model from `artifact.json` plus its referenced files, then fits and predicts:
 
 ```python
-from tabicl import TabICLRegressor
 import pandas as pd
+from tabicl_regressor_pipeline import serving_regressor_class  # the worker vendors the same shim
 
 ctx = pd.read_parquet("training_context.parquet")
-reg = TabICLRegressor(model_path="checkpoints/best.ckpt", allow_auto_download=False)
+reg = serving_regressor_class("checkpoints/best.safetensors")(model_path="checkpoints/best.safetensors", allow_auto_download=False)
 reg.fit(ctx.drop(columns=[target_column]), ctx[target_column])
 y_pred = reg.predict(X_new)
 ```
 
-The fine-tuner performs this reload-and-predict smoke check against `best.ckpt` before it reports
+The fine-tuner performs this reload-and-predict smoke check against `best.safetensors` (through the shim, `torch.load` refused) before it reports
 success. When the dataset zip includes a `test.csv`, it is scored after fitting and does **not**
 influence checkpoint selection.
 

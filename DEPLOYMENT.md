@@ -44,7 +44,7 @@ tabicl_regressor/
 ├── artifact.json
 ├── training_context.parquet
 └── checkpoints/
-    └── best.ckpt
+    └── best.safetensors   (bundle format tabicl-dimer-regressor-v2; see DIMER_CONTRACT.md)
 ```
 
 The training context is part of the serving contract. TabICL remains an in-context learner after downstream fine-tuning, so inference reloads the fine-tuned checkpoint and then fits the inference wrapper on the saved support/context table before predicting new rows.
@@ -52,16 +52,16 @@ The training context is part of the serving contract. TabICL remains an in-conte
 Conceptually:
 
 ```python
-from tabicl import TabICLRegressor
 import pandas as pd
+from tabicl_regressor_pipeline import serving_regressor_class  # the worker vendors the same shim
 
 ctx = pd.read_parquet("training_context.parquet")
-reg = TabICLRegressor(model_path="checkpoints/best.ckpt", allow_auto_download=False)
+reg = serving_regressor_class("checkpoints/best.safetensors")(model_path="checkpoints/best.safetensors", allow_auto_download=False)
 reg.fit(ctx.drop(columns=[target_column]), ctx[target_column])
 y_pred = reg.predict(X_new)
 ```
 
-The training job performs a reload-and-predict smoke check against the saved `best.ckpt` before it reports success.
+The training job converts tabicl's `best.ckpt` to `best.safetensors` right after training (`torch.load(weights_only=True)`, `config` + `state_dict` only; no `.ckpt` is packaged) and performs a reload-and-predict smoke check against `best.safetensors`, through the shim with `torch.load` refused, before it reports success. A deprecated v1 bundle's `best.ckpt` is loaded only with `torch.load(weights_only=True)`.
 
 ## Metrics and provenance
 
@@ -84,7 +84,7 @@ Before enabling for production, verify the complete platform path:
 1. build validator image;
 2. build GPU fine-tuner image;
 3. validate a small regression dataset;
-4. fine-tune and confirm `best.ckpt` plus context artifact are persisted;
+4. fine-tune and confirm `best.safetensors` (and no `.ckpt`) plus context artifact are persisted;
 5. deploy the artifact through DIMER's inference-serving layer;
 6. send a regression request and verify the service reloads both checkpoint and support context;
 7. compare served predictions against an offline reload of the same artifact.
