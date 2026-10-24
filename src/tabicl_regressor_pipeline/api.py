@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import importlib.metadata
 import io
 import json
@@ -19,7 +18,31 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-ARTIFACT_FORMAT = "tabicl-dimer-regressor-v1"
+from . import safetensors_shim as _shim
+from .safetensors_shim import (  # noqa: F401 -- re-exported: the package API and the carried notebook use these names
+    ARTIFACT_FORMAT,
+    BUNDLE_CHECKPOINT,
+    CONFIG_METADATA_KEY,
+    CONVERSION_FORMAT,
+    LEGACY_ARTIFACT_FORMAT,
+    LEGACY_BUNDLE_CHECKPOINT,
+    SUPPORTED_ARTIFACT_FORMATS,
+    canonical_safetensors,
+    check_bundle_layout,
+    convert_finetuned_checkpoint,
+    legacy_checkpoint_regressor_class,
+    load_converted_network,
+    load_legacy_checkpoint_network,
+    safetensors_finetuned_regressor_class,
+    safetensors_regressor_class,
+    serving_regressor_class,
+    sha256_file,
+)
+
+# The conversion, the safetensors shim and the serving-bundle formats live in ``safetensors_shim`` (vendored byte for byte
+# by the fine-tune worker; see its docstring). v2 bundles (``ARTIFACT_FORMAT``) carry ``checkpoints/best.safetensors``;
+# v1 bundles (``checkpoints/best.ckpt``) stay readable with ``torch.load(weights_only=True)`` and a ``DeprecationWarning``.
+
 
 # Fleet snapshot identity (DIMER Notebook Specification 1.1, ST3/MOD13). The pinned upstream checkpoint is
 # unchanged; these are the fleet-standard names for the same repository, revision, license and snapshot key.
@@ -42,8 +65,6 @@ BASE_MODEL_SHA256 = "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd974
 # is then built from that config and loaded with ``load_state_dict(strict=True)``; nothing deserialises the pickle again.
 CONVERTED_CHECKPOINT_NAME = "tabicl-regressor-v2-20260212.safetensors"
 CONVERTED_MODEL_SHA256 = "ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe"
-CONVERSION_FORMAT = "tabicl-state-dict-safetensors-v1"
-CONFIG_METADATA_KEY = "tabicl_config"
 
 # Operational ceilings the tutorials enforce before any model execution (DAT22).
 MIN_TRAIN_ROWS = 50  # labelled support rows required to condition the regressor
@@ -77,12 +98,11 @@ def create_regressor(
 ):
     """Construct the supported TabICLv2 regression serving estimator.
 
-    A ``.safetensors`` path (the converted base weights) is served by ``SafetensorsTabICLRegressor``, which builds
-    the network from the file's config and never calls ``torch.load``. Any other path (a fine-tuned ``best.ckpt``
-    or a serving bundle's checkpoint) goes to the upstream estimator, which loads it with ``weights_only=True``."""
-    from tabicl import TabICLRegressor
-
-    estimator_class = safetensors_regressor_class() if Path(model_path).suffix == ".safetensors" else TabICLRegressor
+    A ``.safetensors`` path (the converted base, a converted fine-tune, a v2 bundle's checkpoint) is served by
+    ``SafetensorsTabICLRegressor``, which builds the network from the file's config and never calls ``torch.load``.
+    Any other path is a deprecated pickle checkpoint (a v1 bundle's ``best.ckpt``): ``LegacyCheckpointTabICLRegressor``
+    reads it only with ``torch.load(weights_only=True)`` and emits a ``DeprecationWarning``."""
+    estimator_class = serving_regressor_class(model_path)
     return estimator_class(
         model_path=str(model_path),
         allow_auto_download=allow_auto_download,
@@ -105,21 +125,9 @@ def create_finetuned_regressor(**kwargs: Any):
     return FinetunedTabICLRegressor(**kwargs)
 
 # ---------------------------------------------------------------------------
-# Safetensors conversion and the shim that serves it (the pinned tabicl==2.1.1 loads ``.ckpt`` files itself in
-# ``TabICLRegressor._load_model``; the shim overrides only that method).
+# Safetensors conversion of the pinned base (the generic conversion and the shim are in ``safetensors_shim``; the pinned
+# tabicl==2.1.1 loads ``.ckpt`` files itself in ``TabICLRegressor._load_model``, and the shim overrides only that method).
 # ---------------------------------------------------------------------------
-
-
-def canonical_safetensors(data: bytes) -> bytes:
-    """Re-emit a safetensors header as sorted, compact JSON padded with spaces to 8 bytes; the data is unchanged.
-
-    ``safetensors.torch.save`` (0.8.0) writes ``__metadata__`` in hash-map order, so equal inputs can give different
-    bytes. Tensor offsets are relative to the end of the header, so re-ordering the header keeps them valid."""
-    size = int.from_bytes(data[:8], "little")
-    header = json.loads(data[8 : 8 + size])
-    text = json.dumps(header, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    text += b" " * (-len(text) % 8)
-    return len(text).to_bytes(8, "little") + text + data[8 + size :]
 
 
 def convert_checkpoint(
@@ -129,53 +137,11 @@ def convert_checkpoint(
     expected_sha256: str | None = None,
     source_name: str = BASE_CHECKPOINT_NAME,
 ) -> dict[str, Any]:
-    """Convert a tabicl ``.ckpt`` to safetensors once; return the source and converted digests.
-
-    The source must match ``expected_sha256`` (default ``BASE_MODEL_SHA256``) before it is read, and is read with
-    ``torch.load(map_location="cpu", weights_only=True)``. The ``state_dict`` tensors are made contiguous CPU clones
-    and the ``config`` is stored as sorted JSON under ``CONFIG_METADATA_KEY``."""
-    source, destination = Path(source), Path(destination)
+    """Convert a tabicl ``.ckpt`` to safetensors once (``safetensors_shim.convert_checkpoint``), by default the pinned base:
+    the source must match ``expected_sha256`` (default ``BASE_MODEL_SHA256``) before it is read with
+    ``torch.load(weights_only=True)``. Returns the source and converted digests."""
     expected = BASE_MODEL_SHA256 if expected_sha256 is None else expected_sha256
-    source_sha = sha256_file(source)
-    if source_sha != expected:
-        raise ValueError(f"{source.name}: sha256 {source_sha} != pinned {expected}; refusing to deserialise it")
-    import torch
-    from safetensors.torch import save
-
-    checkpoint = torch.load(source, map_location="cpu", weights_only=True)
-    if not isinstance(checkpoint, Mapping) or "config" not in checkpoint or "state_dict" not in checkpoint:
-        raise ValueError(f"{source.name}: not a tabicl checkpoint (needs 'config' and 'state_dict')")
-    config = dict(checkpoint["config"])
-    tensors = {key: value.detach().to("cpu").contiguous().clone() for key, value in checkpoint["state_dict"].items()}
-    metadata = {
-        "format": CONVERSION_FORMAT,
-        CONFIG_METADATA_KEY: json.dumps(config, sort_keys=True, separators=(",", ":")),
-        "source_file": source_name,
-        "source_sha256": source_sha,
-    }
-    data = canonical_safetensors(save(tensors, metadata=metadata))
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    tmp = destination.with_name(destination.name + ".tmp")
-    tmp.write_bytes(data)
-    os.replace(tmp, destination)
-    return {"source_sha256": source_sha, "converted_sha256": hashlib.sha256(data).hexdigest(), "tensors": len(tensors), "bytes": len(data)}
-
-
-def load_converted_network(path: str | Path) -> tuple[Any, dict[str, Any]]:
-    """Build the TabICL network from a converted file's config and load its tensors with ``strict=True``."""
-    from safetensors import safe_open
-    from safetensors.torch import load_file
-    from tabicl._model.tabicl import TabICL
-
-    with safe_open(str(path), framework="pt", device="cpu") as handle:
-        metadata = handle.metadata() or {}
-    if metadata.get("format") != CONVERSION_FORMAT or CONFIG_METADATA_KEY not in metadata:
-        raise ValueError(f"{path}: not a {CONVERSION_FORMAT} file")
-    config = json.loads(metadata[CONFIG_METADATA_KEY])
-    network = TabICL(**config)
-    network.load_state_dict(load_file(str(path), device="cpu"), strict=True)
-    network.eval()
-    return network, config
+    return _shim.convert_checkpoint(source, destination, expected_sha256=expected, source_name=source_name)
 
 
 def ensure_converted(path: str | Path | None = None, *, allow_download: bool = False) -> Path:
@@ -195,38 +161,6 @@ def ensure_converted(path: str | Path | None = None, *, allow_download: bool = F
         target.unlink(missing_ok=True)
         raise ValueError(f"{CONVERTED_CHECKPOINT_NAME}: converted sha256 {facts['converted_sha256']} != pinned {CONVERTED_MODEL_SHA256}")
     return target
-
-
-_SHIM_CLASSES: dict[str, type] = {}
-
-
-def safetensors_regressor_class() -> type:
-    """``TabICLRegressor`` with ``_load_model`` reading the converted safetensors file named by ``model_path``."""
-    if "regressor" not in _SHIM_CLASSES:
-        from tabicl import TabICLRegressor
-
-        class SafetensorsTabICLRegressor(TabICLRegressor):
-            def _load_model(self) -> None:
-                self.model_path_ = Path(self.model_path)
-                self.model_, self.model_config_ = load_converted_network(self.model_path_)
-
-        _SHIM_CLASSES["regressor"] = SafetensorsTabICLRegressor
-    return _SHIM_CLASSES["regressor"]
-
-
-def safetensors_finetuned_regressor_class() -> type:
-    """``FinetunedTabICLRegressor`` whose inner estimator is the safetensors shim (the pretrained load goes through it)."""
-    if "finetuned" not in _SHIM_CLASSES:
-        from tabicl import FinetunedTabICLRegressor
-
-        class SafetensorsFinetunedTabICLRegressor(FinetunedTabICLRegressor):
-            def _create_inner_estimator(self, *args: Any, **kwargs: Any):
-                inner = super()._create_inner_estimator(*args, **kwargs)
-                return safetensors_regressor_class()(**inner.get_params())
-
-        _SHIM_CLASSES["finetuned"] = SafetensorsFinetunedTabICLRegressor
-    return _SHIM_CLASSES["finetuned"]
-
 
 
 def fine_tune_regressor(model: Any, X: Any, y: Any, **kwargs: Any) -> Any:
@@ -292,13 +226,14 @@ def _base_version(value: str) -> str:
 def validate_artifact_runtime(
     manifest: dict[str, Any],
     *,
-    expected_artifact_format: str = ARTIFACT_FORMAT,
+    expected_artifact_format: str | Sequence[str] = SUPPORTED_ARTIFACT_FORMATS,
     expected_tabicl_version: str = "2.1.1",
     expected_torch_version: str = "2.11.0",
 ) -> dict[str, Any]:
     """Validate and return artifact/runtime provenance before model deserialization."""
-    if manifest.get("artifactFormat") != expected_artifact_format:
-        raise ValueError(f"Unsupported artifactFormat: {manifest.get('artifactFormat')}")
+    accepted = (expected_artifact_format,) if isinstance(expected_artifact_format, str) else tuple(expected_artifact_format)
+    if manifest.get("artifactFormat") not in accepted:
+        raise ValueError(f"Unsupported artifactFormat: {manifest.get('artifactFormat')} (supported: {list(accepted)})")
     if manifest.get("tabiclVersion") != expected_tabicl_version:
         raise ValueError("Artifact TabICL version does not match the supported runtime")
 
@@ -339,14 +274,6 @@ def validate_artifact_runtime(
 # ---------------------------------------------------------------------------
 # Fleet snapshot scheme (NOTEBOOK_SPEC 1.1 ST3/ST4, MOD13): manifest-driven verification and staging.
 # ---------------------------------------------------------------------------
-
-
-def sha256_file(path: str | Path) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def verify_snapshot(path: str | Path | None = None) -> dict[str, Any]:
@@ -430,8 +357,8 @@ class TabICLRegressionPipeline:
     """Serving wrapper: the digest-verified safetensors conversion of the pinned checkpoint behind ``TabICLRegressor``.
 
     ``from_pretrained`` stages, verifies and converts the snapshot (``ensure_converted``) and constructs the estimator
-    on the converted file through ``create_regressor`` (no auto-download); ``bundle_checkpoint`` names the pinned
-    source ``.ckpt`` a ``pretrained`` serving bundle carries byte-for-byte (the DIMER bundle contract); ``fit``
+    on the converted file through ``create_regressor`` (no auto-download); ``bundle_checkpoint`` names the file a
+    ``pretrained`` serving bundle carries as ``checkpoints/best.safetensors`` (the converted base); ``fit``
     registers the support context (in-context learning, no gradient training) and ``predict`` returns finite point
     predictions through ``predict_points``.
     """
@@ -488,7 +415,7 @@ class TabICLRegressionPipeline:
             n_estimators=n_estimators,
             random_state=random_state,
             device=device,
-            bundle_checkpoint=root / BASE_CHECKPOINT_NAME,
+            bundle_checkpoint=model_path,
         )
 
     def fit(self, X: Any, y: Any) -> TabICLRegressionPipeline:
@@ -909,8 +836,9 @@ def manifest_member_path(root: str | Path, value: Any, field: str) -> Path:
 
 
 def verify_artifact_bundle(root: str | Path, manifest: Mapping[str, Any]) -> dict[str, Path]:
-    """Check an extracted bundle's allowlist, sizes and digests against its manifest; return member paths."""
+    """Check an extracted bundle's layout, allowlist, sizes and digests against its manifest; return member paths."""
     root = Path(root)
+    check_bundle_layout(manifest)
     ckpt = manifest_member_path(root, manifest["checkpoint"], "checkpoint")
     context_path = manifest_member_path(root, manifest["trainingContext"], "trainingContext")
     payload_files = manifest.get("payloadFiles")
