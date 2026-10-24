@@ -50,7 +50,7 @@ _Requirement identifiers in these notes (for example `ST1`, `PAR3`, `DAT24`, `EV
 TabICL remains an in-context learner after downstream fine-tuning. A deployable bundle therefore requires at minimum:
 
 ```text
-checkpoints/best.ckpt
+checkpoints/best.safetensors   (bundle format v2; deprecated v1 bundles carry checkpoints/best.ckpt)
 training_context.parquet
 artifact.json
 ```

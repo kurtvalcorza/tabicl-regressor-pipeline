@@ -234,7 +234,7 @@ tabicl_regressor/
 ├── artifact.json            complete inference contract (schema, inference block, encoders, digests)
 ├── training_context.parquet the in-context support table used at inference time
 ├── checkpoints/
-│   └── best.ckpt            the fine-tuned TabICLv2 checkpoint
+│   └── best.safetensors     the fine-tuned TabICLv2 weights (bundle format v2; converted from tabicl's best.ckpt)
 ├── evaluation/
 │   └── report.json          validation / optional test metrics
 ├── logs/
@@ -250,7 +250,7 @@ identifier with its HF revision / SHA-256 / source (`dimer-provided` / `pinned-b
 column, and the training hyperparameters.
 
 DIMER resolves every exportable file by the **`artifacts` block** in `result.json`, keyed by a
-`/data`-relative path (`workbench.domain._resolve_result_artifact`). `modelArtifact` (`best.ckpt`)
+`/data`-relative path (`workbench.domain._resolve_result_artifact`). `modelArtifact` (`best.safetensors`, with its `sha256`)
 is **mandatory** — export-to-repository and model-download report *"No model artifact found"*
 without it — and `trainingContext` (`training_context.parquet`) is the second file the in-context
 learner needs at serve time; `manifest`, `evaluationReport`, and `logArtifact` accompany them.
@@ -266,7 +266,7 @@ learner needs at serve time; `manifest`, `evaluationReport`, and `logArtifact` a
     "featureCount": 17, "device": "cuda:0", "mode": "fine-tune"
   },
   "artifacts": {
-    "modelArtifact":    { "path": "fine-tuning/<run_id>/tabicl_regressor/checkpoints/best.ckpt",    "name": "best.ckpt",                "contentType": "application/octet-stream", "sizeBytes": 0 },
+    "modelArtifact":    { "path": "fine-tuning/<run_id>/tabicl_regressor/checkpoints/best.safetensors", "name": "best.safetensors", "contentType": "application/octet-stream", "sizeBytes": 0, "sha256": "…" },
     "trainingContext":  { "path": "fine-tuning/<run_id>/tabicl_regressor/training_context.parquet", "name": "training_context.parquet", "contentType": "application/octet-stream", "sizeBytes": 0 },
     "manifest":         { "path": "fine-tuning/<run_id>/tabicl_regressor/artifact.json",            "name": "artifact.json",            "contentType": "application/json",         "sizeBytes": 0 },
     "evaluationReport": { "path": "fine-tuning/<run_id>/tabicl_regressor/evaluation/report.json",   "name": "report.json",              "contentType": "application/json",         "sizeBytes": 0 },
@@ -291,16 +291,16 @@ fine-tuned checkpoint and the training context**. A fresh-environment loader rec
 exact scored model from `artifact.json` plus its referenced files, then fits and predicts:
 
 ```python
-from tabicl import TabICLRegressor
 import pandas as pd
+from tabicl_regressor_pipeline import serving_regressor_class  # the worker vendors the same shim
 
 ctx = pd.read_parquet("training_context.parquet")
-reg = TabICLRegressor(model_path="checkpoints/best.ckpt", allow_auto_download=False)
+reg = serving_regressor_class("checkpoints/best.safetensors")(model_path="checkpoints/best.safetensors", allow_auto_download=False)
 reg.fit(ctx.drop(columns=[target_column]), ctx[target_column])
 y_pred = reg.predict(X_new)
 ```
 
-The fine-tuner performs this reload-and-predict smoke check against `best.ckpt` before it reports
+The fine-tuner performs this reload-and-predict smoke check against `best.safetensors` (through the shim, `torch.load` refused) before it reports
 success. When the dataset zip includes a `test.csv`, it is scored after fitting and does **not**
 influence checkpoint selection.
 

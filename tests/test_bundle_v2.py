@@ -89,6 +89,13 @@ def test_a_pretrained_bundle_must_carry_the_pinned_base_in_its_own_layout() -> N
             S.check_bundle_identity(P, swapped)
 
 
+def test_the_staged_v2_sample_pin_is_not_the_default_until_it_is_published() -> None:
+    S = _stages()
+    assert S.SAMPLE_ARTIFACT_TAG == "sample-artifact-diabetes-v1" and "sample-artifact-diabetes-v1" in S.SAMPLE_ARTIFACT_URL
+    assert S.SAMPLE_ARTIFACT_V2_TAG == "sample-artifact-diabetes-v2"
+    assert len(S.SAMPLE_ARTIFACT_V2_SHA256) == 64 and S.SAMPLE_ARTIFACT_V2_SHA256 != S.SAMPLE_ARTIFACT_SHA256
+
+
 def test_the_shim_module_is_self_contained_so_the_worker_can_vendor_it_byte_for_byte() -> None:
     import ast
 
