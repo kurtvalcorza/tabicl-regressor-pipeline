@@ -122,7 +122,7 @@ NOTEBOOKS = {
             'archive = deterministic_zip(art, run.out / f"{STEM}_artifact.zip")',
             "ZIP_DATE_TIME = (1980, 1, 1, 0, 0, 0)",
             "info.external_attr = 0o644 << 16",
-            'SAMPLE_ARTIFACT_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip"',
+            'SAMPLE_ARTIFACT_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v2/tabiclv2_regressor_artifact.zip"',
             'SAMPLE_ARTIFACT_SHA256 = "',
             'EXTERNAL_DIR = "external_artifact"',
             'zip_path = fetch_pinned_artifact(run.root / "inputs" / "external_artifact.zip", SAMPLE_ARTIFACT_URL, SAMPLE_ARTIFACT_SHA256)',
@@ -297,7 +297,7 @@ KERNEL_INSTALL = re.compile(r"['\"]-m['\"]\s*,\s*['\"]pip['\"]|^\s*[%!]\s*pip\b|
 # ST1 / SART6: the only github.com/kurtvalcorza reference allowed anywhere in tutorial code is the exact pinned sample-artifact
 # URL of the external-artifact section, in the stage runner only. It is built here from the tag and compared whole: no prefix
 # match, and a reference holding "..", "%2e" (any case), "?" or "#" is refused even before the comparison.
-SAMPLE_ARTIFACT_TAG = "sample-artifact-diabetes-v1"
+SAMPLE_ARTIFACT_TAG = "sample-artifact-diabetes-v2"
 PINNED_SAMPLE_ARTIFACT_URL = f"https://github.com/kurtvalcorza/{REPO_NAME}/releases/download/{SAMPLE_ARTIFACT_TAG}/tabiclv2_regressor_artifact.zip"
 _OWN_REFERENCE = re.compile(r"github\.com/kurtvalcorza", re.I)
 _REFERENCE_STOP = set(" \t\r\n'\"`<>()[]{},;\\")
@@ -466,8 +466,8 @@ EXTERNAL_WEIGHT_BYTES: dict[int, str] = {
 }
 EXTERNAL_WEIGHT_DIGESTS: dict[str, str] = {
     "ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe": "CONVERTED_MODEL_SHA256: the served safetensors conversion of the pinned checkpoint (produced locally, not staged from the Hub)",
-    "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828": "the pinned sample artifact of the external-artifact section (release sample-artifact-diabetes-v1), not a weight file",
-    "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce": "the staged v2 re-issue of the sample artifact (release sample-artifact-diabetes-v2, not yet published), not a weight file",
+    "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce": "the pinned sample artifact of the external-artifact section (release sample-artifact-diabetes-v2, the bundle-format-v2 re-issue of v1), not a weight file",
+    "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828": "the superseded v1 sample artifact (release sample-artifact-diabetes-v1), not a weight file",
 }
 _DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{64}(?![0-9a-fA-F])")
 _GROUPED = r"(\d{1,3}(?:[,\u202f\u00a0 ]\d{3})+|\d+)"
