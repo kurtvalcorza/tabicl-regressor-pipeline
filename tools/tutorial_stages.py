@@ -283,7 +283,9 @@ def stage_weights(run: Run) -> None:
     print({"weights_dir": str(snapshot), "fetched": fetched})
     verified = P.verify_snapshot(snapshot)
     print({"verified_files": len(verified["files"]), "revision": verified["revision"], "sha256": [f["sha256"] for f in verified["files"]]})
-    run.write_state("weights.json", {"snapshot": str(snapshot), "checkpoint": str(snapshot / P.BASE_CHECKPOINT_NAME)})
+    served = P.ensure_converted(snapshot)  # one torch.load(weights_only=True) of the verified source; never again after this
+    print({"served_weights": served.name, "served_sha256": P.sha256_file(served), "pinned": P.CONVERTED_MODEL_SHA256})
+    run.write_state("weights.json", {"snapshot": str(snapshot), "checkpoint": str(snapshot / P.BASE_CHECKPOINT_NAME), "served": str(served)})
 
 
 def stage_data(run: Run) -> None:
@@ -473,7 +475,7 @@ def stage_condition(run: Run) -> None:
     if pretrained_test:
         print("pretrained independent test", rounded(pretrained_test))
     candidate_holdout = candidate_test = None
-    active_mode, active_checkpoint, selection = "pretrained", str(pipe.model_path), "default:pretrained"
+    active_mode, active_checkpoint, selection = "pretrained", str(pipe.bundle_checkpoint), "default:pretrained"
     fine_tune = {"requested": run_ft, "ran": False}
     if run_ft and not torch.cuda.is_available():
         fine_tune["skipped"] = "no CUDA device: TabICLv2 fine-tuning needs a GPU runtime (RUN7 deviation for this run, recorded here)"

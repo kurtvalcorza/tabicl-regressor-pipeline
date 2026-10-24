@@ -121,7 +121,7 @@ TEMPLATE = {
     "prerequisites": [
         RUNTIME_PREREQ,
         "- **Knowledge:** basic pandas, what a train/holdout/test split is, and how to read a printed Python dictionary. MAE, RMSE, R², the paired standard error, in-context conditioning and fine-tuning are explained where they are first used, and the glossary collects them.",
-        "- **Model file:** one checkpoint, `tabicl-regressor-v2-20260212.ckpt` (114 MB, released under BSD-3-Clause). It is a PyTorch/Lightning checkpoint: `tabicl` deserialises it, so only the digest-verified file is ever loaded.",
+        "- **Model file:** one checkpoint, `tabicl-regressor-v2-20260212.ckpt` (114 MB, released under BSD-3-Clause). It is a PyTorch/Lightning pickle checkpoint, so Section 3 reads the digest-verified file once with `torch.load(weights_only=True)` and converts it to `tabicl-regressor-v2-20260212.safetensors`, whose SHA-256 is pinned; the model is then built from that file's config and loaded from it with `load_state_dict(strict=True)`. Every stage serves the base model from the safetensors file, never from the pickle.",
         "- **Data:** the default sample is scikit-learn's bundled diabetes table (442 rows, 10 numeric features, a numeric target), loaded from the installed package, so nothing is downloaded and no private data is needed; the optional `Sample: California Housing` downloads the California housing table from figshare through scikit-learn on first use and keeps a seeded 2,000-row subsample. BYOD (one CSV with a numeric target column, or pre-split `train`/`val`/`test` CSVs) is off by default so the sample path runs top to bottom without interaction. The tutorial's own floors are `MIN_TRAIN_ROWS` = 50 support rows and `MIN_EVAL_ROWS` = 2 holdout rows; the production DIMER validator described in the model card is stricter (10 evaluation rows). Do not upload confidential or restricted data to a hosted notebook environment unless you are authorized to do so. Uploaded inputs remain in the notebook runtime; this pipeline does not send them to a third-party inference API.",
     ],
     "guided": {
@@ -172,7 +172,7 @@ TEMPLATE = {
                 "|---|---|---|---|\n"
                 "| 1. Check the runtime | [Engineering] | Linux x86_64, GPU and disk; a run directory | the machine |\n"
                 "| 2. Carry the code, build the environment | [Engineering] | carried files verified; an isolated hash-locked environment | versions |\n"
-                "| 3. Pin, stage and verify the model | [Engineering] | the 114 MB checkpoint downloaded at a fixed revision, digest-checked | identity and digest |\n"
+                "| 3. Pin, stage and verify the model | [Engineering] | the 114 MB checkpoint downloaded at a fixed revision, digest-checked, converted once to pinned safetensors | identity, both digests |\n"
                 "| 4. Load the sample or your own data | [Concept] | the diabetes table (or your files), split 60/20/20 | partition sizes, digest |\n"
                 "| 5. Validate and encode | [Evaluation practice] | input manifest; a refusal probe; encoders; training-mean baseline | the manifest |\n"
                 "| 6. Condition and fine-tune | [Concept] | pretrained metrics; bounded fine-tuning and holdout selection | the selection |\n"
@@ -324,8 +324,8 @@ TEMPLATE = {
         {
             "md": (
                 "## 6. Condition TabICLv2, then fine-tune it (GPU) · [Concept]\n\n"
-                "`fit` does not train anything; it registers the support rows as the model's context (the checkpoint pinned in "
-                "Section 3 is deserialised by `tabicl` here). `regression_metrics` scores the holdout and the independent test: "
+                "`fit` does not train anything; it registers the support rows as the model's context (the network built in "
+                "Section 3 from the pinned safetensors conversion is loaded here). `regression_metrics` scores the holdout and the independent test: "
                 "**MAE** and **RMSE** are errors in target units (lower is better; RMSE weighs large misses more), **R²** compares "
                 "the squared error with that of always predicting the mean (higher is better), and **Pearson r** is the linear "
                 "correlation between predictions and targets.\n\n"
