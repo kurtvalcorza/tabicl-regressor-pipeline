@@ -68,6 +68,12 @@ SAMPLE_ARTIFACT_PRODUCER = {
     "run": "recorded hosted Colab T4 run; the release notes of the tag name the run record (SART8)",
     "release_tag": SAMPLE_ARTIFACT_TAG,
 }
+# The re-issued sample artifact (v2 bundle layout: checkpoints/best.safetensors, the converted base). Built from the v1 ZIP
+# with byte-identical training context and a recorded `reissue` block; staged for release, NOT yet published. Until
+# the tag is published, the default above stays on v1 (a deprecated v1 bundle, read with weights_only=True); switching is
+# replacing the three SAMPLE_ARTIFACT_* values above with these and the producer record.
+SAMPLE_ARTIFACT_V2_TAG = "sample-artifact-diabetes-v2"
+SAMPLE_ARTIFACT_V2_SHA256 = "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce"
 SAMPLE_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024  # a download larger than this is refused before it is hashed or opened
 EXTERNAL_DIR = "external_artifact"  # under outputs/: the section's predictions and provenance (XAS6)
 EXTERNAL_SAMPLE_ROWS = 8
@@ -283,7 +289,9 @@ def stage_weights(run: Run) -> None:
     print({"weights_dir": str(snapshot), "fetched": fetched})
     verified = P.verify_snapshot(snapshot)
     print({"verified_files": len(verified["files"]), "revision": verified["revision"], "sha256": [f["sha256"] for f in verified["files"]]})
-    run.write_state("weights.json", {"snapshot": str(snapshot), "checkpoint": str(snapshot / P.BASE_CHECKPOINT_NAME)})
+    served = P.ensure_converted(snapshot)  # one torch.load(weights_only=True) of the verified source; never again after this
+    print({"served_weights": served.name, "served_sha256": P.sha256_file(served), "pinned": P.CONVERTED_MODEL_SHA256})
+    run.write_state("weights.json", {"snapshot": str(snapshot), "checkpoint": str(snapshot / P.BASE_CHECKPOINT_NAME), "served": str(served)})
 
 
 def stage_data(run: Run) -> None:
@@ -473,7 +481,7 @@ def stage_condition(run: Run) -> None:
     if pretrained_test:
         print("pretrained independent test", rounded(pretrained_test))
     candidate_holdout = candidate_test = None
-    active_mode, active_checkpoint, selection = "pretrained", str(pipe.model_path), "default:pretrained"
+    active_mode, active_checkpoint, selection = "pretrained", str(pipe.bundle_checkpoint), "default:pretrained"
     fine_tune = {"requested": run_ft, "ran": False}
     if run_ft and not torch.cuda.is_available():
         fine_tune["skipped"] = "no CUDA device: TabICLv2 fine-tuning needs a GPU runtime (RUN7 deviation for this run, recorded here)"
@@ -486,16 +494,20 @@ def stage_condition(run: Run) -> None:
         shutil.rmtree(ft_dir, ignore_errors=True)
         finetuner = P.create_finetuned_regressor(epochs=epochs, learning_rate=1e-5, weight_decay=0.01, n_estimators_finetune=1, n_estimators_validation=1, n_estimators_inference=4, early_stopping=True, patience=FINE_TUNE["patience"], time_limit=FINE_TUNE["time_limit"], eval_metric=metric, model_path=str(pipe.model_path), allow_auto_download=False, device="cuda", random_state=SEED, verbose=True)
         P.fine_tune_regressor(finetuner, X_train, y_train, X_val=holdout[enc["features"]], y_val=holdout[enc["target"]], output_dir=str(ft_dir))
-        best = ft_dir / "best.ckpt"
-        if not best.exists():
+        best_pickle = ft_dir / "best.ckpt"
+        if not best_pickle.exists():
             raise RuntimeError("Fine-tuning did not produce best.ckpt")
-        for checkpoint in [c for c in ft_dir.rglob("*.ckpt") if c.resolve() != best.resolve()]:
-            checkpoint.unlink()  # keep best.ckpt only: TabICL writes one checkpoint per epoch
+        # tabicl writes its checkpoints itself with torch.save: best.ckpt is read once with torch.load(weights_only=True)
+        # and replaced by best.safetensors; every other .ckpt (one per epoch) is deleted. Nothing later reads a pickle.
+        best_facts = P.convert_finetuned_checkpoint(best_pickle)
+        best = Path(best_facts["path"])
+        for checkpoint in ft_dir.rglob("*.ckpt"):
+            checkpoint.unlink()
         candidate = from_checkpoint(run, best, pipe, "fine-tuned")
         candidate.fit(X_train, y_train)
         candidate_holdout = score(P, candidate, holdout, enc)
         candidate_test = score(P, candidate, test, enc) if test is not None else None
-        fine_tune.update(ran=True, epochs_requested=epochs, time_limit_seconds=FINE_TUNE["time_limit"], checkpoint_bytes=best.stat().st_size)
+        fine_tune.update(ran=True, epochs_requested=epochs, time_limit_seconds=FINE_TUNE["time_limit"], checkpoint_bytes=best.stat().st_size, checkpoint_sha256=best_facts["converted_sha256"], ckpt_source_sha256=best_facts["source_sha256"])
         print("candidate holdout", rounded(candidate_holdout))
         if len(holdout) < MIN_SELECTION_HOLDOUT_ROWS:
             selection = f"default:pretrained; holdout-too-small:{len(holdout)}<{MIN_SELECTION_HOLDOUT_ROWS}"
@@ -691,7 +703,7 @@ def build_manifest(P, *, enc: dict, mode: str, selection: str, metrics: dict | N
     """The bundle manifest written by the export stage."""
     return {
         "artifactFormat": P.ARTIFACT_FORMAT,
-        "checkpoint": "checkpoints/best.ckpt",
+        "checkpoint": P.BUNDLE_CHECKPOINT,
         "trainingContext": "training_context.parquet",
         "targetColumn": enc["target"],
         "featureColumns": enc["features"],
@@ -702,10 +714,10 @@ def build_manifest(P, *, enc: dict, mode: str, selection: str, metrics: dict | N
         "mode": mode,
         "selectionBasis": selection,
         "metrics": metrics,
-        "inference": {"class": "TabICLRegressor", "modelPath": "checkpoints/best.ckpt", "nEstimators": n_estimators, "randomState": SEED, "allowAutoDownload": False, "categoricalEncoders": enc["encoders"]},
+        "inference": {"class": "TabICLRegressor", "weightsFormat": "safetensors (config in the string metadata; load with create_regressor)", "modelPath": P.BUNDLE_CHECKPOINT, "nEstimators": n_estimators, "randomState": SEED, "allowAutoDownload": False, "categoricalEncoders": enc["encoders"]},
         "digests": {"checkpointSha256": checkpoint_facts[0] if checkpoint_facts else sha256_file(checkpoint), "trainingContextSha256": sha256_file(context)},
         "sizes": {"checkpoint": checkpoint_facts[1] if checkpoint_facts else checkpoint.stat().st_size, "trainingContext": context.stat().st_size},
-        "payloadFiles": ["checkpoints/best.ckpt", "training_context.parquet"],
+        "payloadFiles": [P.BUNDLE_CHECKPOINT, "training_context.parquet"],
         "runtime": runtime,
         "notebookSource": source,
     }
@@ -747,7 +759,9 @@ def stage_export(run: Run) -> None:
     art = run.out / "artifact"
     shutil.rmtree(art, ignore_errors=True)
     (art / "checkpoints").mkdir(parents=True)
-    ckpt = art / "checkpoints" / "best.ckpt"
+    ckpt = art / P.BUNDLE_CHECKPOINT  # a converted fine-tune or, for "pretrained", the converted base (CONVERTED_MODEL_SHA256)
+    if Path(cond["active_checkpoint"]).suffix != ".safetensors":
+        raise RuntimeError(f"the selected checkpoint {cond['active_checkpoint']} is not a safetensors file; re-run the condition stage")
     shutil.copy2(cond["active_checkpoint"], ckpt)
     context = art / "training_context.parquet"
     train[enc["features"] + [enc["target"]]].to_parquet(context, index=False)
@@ -870,9 +884,10 @@ def fetch_pinned_artifact(cache: Path, url: str, expected: str) -> Path:
 
 
 def check_bundle_identity(P, manifest: dict[str, Any]) -> dict[str, Any]:
-    """The manifest must declare the pinned base checkpoint; a ``pretrained`` bundle's checkpoint must BE that base
-    checkpoint (``digests.checkpointSha256 == BASE_MODEL_SHA256``), so a swapped, code-capable checkpoint behind a
-    re-hashed manifest is refused (TIRA-m2). A ``fine-tuned`` checkpoint is a derivative bound only by the bundle's own
+    """The manifest must declare the pinned base checkpoint; a ``pretrained`` bundle's checkpoint must BE the pinned base:
+    in a v2 bundle the converted base (``digests.checkpointSha256 == CONVERTED_MODEL_SHA256``), in a deprecated v1 bundle
+    the source checkpoint (``== BASE_MODEL_SHA256``), so a swapped checkpoint behind a re-hashed manifest is refused
+    (TIRA-m2). A ``fine-tuned`` checkpoint is a derivative bound only by the bundle's own
     digests and the trusted ZIP digest."""
     declared = (manifest.get("baseCheckpoint"), manifest.get("baseModelRevision"), manifest.get("baseModelSha256"))
     if declared != (P.BASE_CHECKPOINT_NAME, P.MODEL_REVISION, P.BASE_MODEL_SHA256):
@@ -880,9 +895,12 @@ def check_bundle_identity(P, manifest: dict[str, Any]) -> dict[str, Any]:
     mode = manifest.get("mode")
     checkpoint_sha = (manifest.get("digests") or {}).get("checkpointSha256")
     if mode == "pretrained":
-        if checkpoint_sha != P.BASE_MODEL_SHA256:
-            raise RuntimeError(f"The artifact declares mode 'pretrained', so its checkpoint must be the pinned base checkpoint with SHA-256 {P.BASE_MODEL_SHA256}; its manifest records {checkpoint_sha}. Refusing to load a different checkpoint.")
-        return {"mode": mode, "checkpoint_binding": "identical to the pinned base checkpoint (SHA-256 checked)"}
+        legacy = manifest.get("artifactFormat") == P.LEGACY_ARTIFACT_FORMAT
+        expected = P.BASE_MODEL_SHA256 if legacy else P.CONVERTED_MODEL_SHA256
+        if checkpoint_sha != expected:
+            raise RuntimeError(f"The artifact declares mode 'pretrained', so its checkpoint must be the pinned base with SHA-256 {expected}; its manifest records {checkpoint_sha}. Refusing to load a different checkpoint.")
+        what = "the pinned base checkpoint (deprecated v1 pickle layout)" if legacy else "the pinned safetensors conversion of the base"
+        return {"mode": mode, "checkpoint_binding": f"identical to {what} (SHA-256 checked)"}
     if mode == "fine-tuned":
         return {"mode": mode, "checkpoint_binding": "fine-tuned derivative of the pinned base; bound by the manifest digest and the trusted ZIP digest"}
     raise RuntimeError(f"Unsupported artifact mode {mode!r}: expected 'pretrained' or 'fine-tuned'.")

@@ -1,6 +1,7 @@
 # Release-verified notebook-level dependencies for NOTEBOOK_SPEC 1.0.
 # PyTorch is runtime-provided and verified separately as 2.11.0.
 tabicl==2.1.1
+safetensors==0.8.0
 lightgbm==4.7.0
 pyarrow==25.0.1
 pandas==2.3.3

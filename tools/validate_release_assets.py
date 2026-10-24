@@ -115,7 +115,9 @@ NOTEBOOKS = {
             '"baseCheckpoint": P.BASE_CHECKPOINT_NAME',
             '"baseModelSha256": P.BASE_MODEL_SHA256',
             'metrics = {"selectionMetric": cond["eval_metric"], "pretrainedHoldout": cond["pretrained_holdout"], "fineTunedHoldout": cond["candidate_holdout"]',
-            '"payloadFiles": ["checkpoints/best.ckpt", "training_context.parquet"]',
+            '"payloadFiles": [P.BUNDLE_CHECKPOINT, "training_context.parquet"]',
+            '"checkpoint": P.BUNDLE_CHECKPOINT,',
+            "best_facts = P.convert_finetuned_checkpoint(best_pickle)",
             "Trusted digest of this export",
             'archive = deterministic_zip(art, run.out / f"{STEM}_artifact.zip")',
             "ZIP_DATE_TIME = (1980, 1, 1, 0, 0, 0)",
@@ -459,9 +461,13 @@ def validate_identity_consistency() -> None:
 # (dataset files, upstream files that are not staged, origin checkpoints, totals). Declared entries
 # that no document cites any more are rejected, so the allowlist cannot go stale.
 WEIGHT_DOCS = ("README.md", "MODEL_CARD.md", "docs/WEIGHTS.md")
-EXTERNAL_WEIGHT_BYTES: dict[int, str] = {}
+EXTERNAL_WEIGHT_BYTES: dict[int, str] = {
+    114223620: "the served safetensors conversion of the pinned checkpoint (produced locally by convert_checkpoint, not staged from the Hub)",
+}
 EXTERNAL_WEIGHT_DIGESTS: dict[str, str] = {
+    "ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe": "CONVERTED_MODEL_SHA256: the served safetensors conversion of the pinned checkpoint (produced locally, not staged from the Hub)",
     "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828": "the pinned sample artifact of the external-artifact section (release sample-artifact-diabetes-v1), not a weight file",
+    "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce": "the staged v2 re-issue of the sample artifact (release sample-artifact-diabetes-v2, not yet published), not a weight file",
 }
 _DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{64}(?![0-9a-fA-F])")
 _GROUPED = r"(\d{1,3}(?:[,\u202f\u00a0 ]\d{3})+|\d+)"

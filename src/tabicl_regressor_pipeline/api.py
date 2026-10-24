@@ -1,7 +1,7 @@
+# ruff: noqa: E501  -- long docstrings and messages are kept readable (as in the sibling classifier package)
 from __future__ import annotations
 
 import csv
-import hashlib
 import importlib.metadata
 import io
 import json
@@ -18,7 +18,31 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-ARTIFACT_FORMAT = "tabicl-dimer-regressor-v1"
+from . import safetensors_shim as _shim
+from .safetensors_shim import (  # noqa: F401 -- re-exported: the package API and the carried notebook use these names
+    ARTIFACT_FORMAT,
+    BUNDLE_CHECKPOINT,
+    CONFIG_METADATA_KEY,
+    CONVERSION_FORMAT,
+    LEGACY_ARTIFACT_FORMAT,
+    LEGACY_BUNDLE_CHECKPOINT,
+    SUPPORTED_ARTIFACT_FORMATS,
+    canonical_safetensors,
+    check_bundle_layout,
+    convert_finetuned_checkpoint,
+    legacy_checkpoint_regressor_class,
+    load_converted_network,
+    load_legacy_checkpoint_network,
+    safetensors_finetuned_regressor_class,
+    safetensors_regressor_class,
+    serving_regressor_class,
+    sha256_file,
+)
+
+# The conversion, the safetensors shim and the serving-bundle formats live in ``safetensors_shim`` (vendored byte for byte
+# by the fine-tune worker; see its docstring). v2 bundles (``ARTIFACT_FORMAT``) carry ``checkpoints/best.safetensors``;
+# v1 bundles (``checkpoints/best.ckpt``) stay readable with ``torch.load(weights_only=True)`` and a ``DeprecationWarning``.
+
 
 # Fleet snapshot identity (DIMER Notebook Specification 1.1, ST3/MOD13). The pinned upstream checkpoint is
 # unchanged; these are the fleet-standard names for the same repository, revision, license and snapshot key.
@@ -34,6 +58,13 @@ BASE_MODEL_REPO = MODEL_ID
 BASE_CHECKPOINT_NAME = "tabicl-regressor-v2-20260212.ckpt"
 BASE_MODEL_REVISION = MODEL_REVISION
 BASE_MODEL_SHA256 = "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a"
+
+# The served weights: a one-time safetensors conversion of the pinned checkpoint (its ``state_dict`` as tensors, its
+# ``config`` as sorted JSON in the string metadata). ``convert_checkpoint`` reads the pickle source once with
+# ``torch.load(weights_only=True)`` and the conversion is byte-reproducible, so its SHA-256 is pinned here. The model
+# is then built from that config and loaded with ``load_state_dict(strict=True)``; nothing deserialises the pickle again.
+CONVERTED_CHECKPOINT_NAME = "tabicl-regressor-v2-20260212.safetensors"
+CONVERTED_MODEL_SHA256 = "ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe"
 
 # Operational ceilings the tutorials enforce before any model execution (DAT22).
 MIN_TRAIN_ROWS = 50  # labelled support rows required to condition the regressor
@@ -65,10 +96,14 @@ def create_regressor(
     device: str,
     allow_auto_download: bool = False,
 ):
-    """Construct the supported TabICLv2 regression serving estimator."""
-    from tabicl import TabICLRegressor
+    """Construct the supported TabICLv2 regression serving estimator.
 
-    return TabICLRegressor(
+    A ``.safetensors`` path (the converted base, a converted fine-tune, a v2 bundle's checkpoint) is served by
+    ``SafetensorsTabICLRegressor``, which builds the network from the file's config and never calls ``torch.load``.
+    Any other path is a deprecated pickle checkpoint (a v1 bundle's ``best.ckpt``): ``LegacyCheckpointTabICLRegressor``
+    reads it only with ``torch.load(weights_only=True)`` and emits a ``DeprecationWarning``."""
+    estimator_class = serving_regressor_class(model_path)
+    return estimator_class(
         model_path=str(model_path),
         allow_auto_download=allow_auto_download,
         n_estimators=n_estimators,
@@ -78,11 +113,54 @@ def create_regressor(
 
 
 def create_finetuned_regressor(**kwargs: Any):
-    """Construct the supported TabICLv2 regression fine-tuning estimator."""
+    """Construct the supported TabICLv2 regression fine-tuning estimator.
+
+    With ``model_path`` on the converted ``.safetensors`` base, the fine-tuner's inner estimator is the
+    ``SafetensorsTabICLRegressor`` shim, so the pretrained weights are read from the safetensors file."""
     from tabicl import FinetunedTabICLRegressor
 
     kwargs.setdefault("allow_auto_download", False)
+    if Path(str(kwargs.get("model_path") or "")).suffix == ".safetensors":
+        return safetensors_finetuned_regressor_class()(**kwargs)
     return FinetunedTabICLRegressor(**kwargs)
+
+# ---------------------------------------------------------------------------
+# Safetensors conversion of the pinned base (the generic conversion and the shim are in ``safetensors_shim``; the pinned
+# tabicl==2.1.1 loads ``.ckpt`` files itself in ``TabICLRegressor._load_model``, and the shim overrides only that method).
+# ---------------------------------------------------------------------------
+
+
+def convert_checkpoint(
+    source: str | Path,
+    destination: str | Path,
+    *,
+    expected_sha256: str | None = None,
+    source_name: str = BASE_CHECKPOINT_NAME,
+) -> dict[str, Any]:
+    """Convert a tabicl ``.ckpt`` to safetensors once (``safetensors_shim.convert_checkpoint``), by default the pinned base:
+    the source must match ``expected_sha256`` (default ``BASE_MODEL_SHA256``) before it is read with
+    ``torch.load(weights_only=True)``. Returns the source and converted digests."""
+    expected = BASE_MODEL_SHA256 if expected_sha256 is None else expected_sha256
+    return _shim.convert_checkpoint(source, destination, expected_sha256=expected, source_name=source_name)
+
+
+def ensure_converted(path: str | Path | None = None, *, allow_download: bool = False) -> Path:
+    """Return the verified converted weights in a snapshot directory, converting the pinned source if needed.
+
+    A present file whose SHA-256 equals ``CONVERTED_MODEL_SHA256`` is used as is and the source is not read.
+    Otherwise the source is staged if absent (``allow_download``), checked by ``verify_snapshot``, converted once,
+    and the result must equal the pin."""
+    root = Path(path or DEFAULT_WEIGHTS_DIR)
+    target = root / CONVERTED_CHECKPOINT_NAME
+    if target.is_file() and sha256_file(target) == CONVERTED_MODEL_SHA256:
+        return target
+    stage_missing_files(root, allow_download=allow_download)
+    verify_snapshot(root)
+    facts = convert_checkpoint(root / BASE_CHECKPOINT_NAME, target)
+    if facts["converted_sha256"] != CONVERTED_MODEL_SHA256:
+        target.unlink(missing_ok=True)
+        raise ValueError(f"{CONVERTED_CHECKPOINT_NAME}: converted sha256 {facts['converted_sha256']} != pinned {CONVERTED_MODEL_SHA256}")
+    return target
 
 
 def fine_tune_regressor(model: Any, X: Any, y: Any, **kwargs: Any) -> Any:
@@ -148,13 +226,14 @@ def _base_version(value: str) -> str:
 def validate_artifact_runtime(
     manifest: dict[str, Any],
     *,
-    expected_artifact_format: str = ARTIFACT_FORMAT,
+    expected_artifact_format: str | Sequence[str] = SUPPORTED_ARTIFACT_FORMATS,
     expected_tabicl_version: str = "2.1.1",
     expected_torch_version: str = "2.11.0",
 ) -> dict[str, Any]:
     """Validate and return artifact/runtime provenance before model deserialization."""
-    if manifest.get("artifactFormat") != expected_artifact_format:
-        raise ValueError(f"Unsupported artifactFormat: {manifest.get('artifactFormat')}")
+    accepted = (expected_artifact_format,) if isinstance(expected_artifact_format, str) else tuple(expected_artifact_format)
+    if manifest.get("artifactFormat") not in accepted:
+        raise ValueError(f"Unsupported artifactFormat: {manifest.get('artifactFormat')} (supported: {list(accepted)})")
     if manifest.get("tabiclVersion") != expected_tabicl_version:
         raise ValueError("Artifact TabICL version does not match the supported runtime")
 
@@ -195,14 +274,6 @@ def validate_artifact_runtime(
 # ---------------------------------------------------------------------------
 # Fleet snapshot scheme (NOTEBOOK_SPEC 1.1 ST3/ST4, MOD13): manifest-driven verification and staging.
 # ---------------------------------------------------------------------------
-
-
-def sha256_file(path: str | Path) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def verify_snapshot(path: str | Path | None = None) -> dict[str, Any]:
@@ -283,11 +354,13 @@ def stage_missing_files(
 
 
 class TabICLRegressionPipeline:
-    """Serving wrapper: the digest-verified pinned checkpoint behind the upstream ``TabICLRegressor``.
+    """Serving wrapper: the digest-verified safetensors conversion of the pinned checkpoint behind ``TabICLRegressor``.
 
-    ``from_pretrained`` stages and verifies the snapshot and constructs the estimator through
-    ``create_regressor`` (no auto-download); ``fit`` registers the support context (in-context learning,
-    no gradient training) and ``predict`` returns finite point predictions through ``predict_points``.
+    ``from_pretrained`` stages, verifies and converts the snapshot (``ensure_converted``) and constructs the estimator
+    on the converted file through ``create_regressor`` (no auto-download); ``bundle_checkpoint`` names the file a
+    ``pretrained`` serving bundle carries as ``checkpoints/best.safetensors`` (the converted base); ``fit``
+    registers the support context (in-context learning, no gradient training) and ``predict`` returns finite point
+    predictions through ``predict_points``.
     """
 
     def __init__(
@@ -299,9 +372,11 @@ class TabICLRegressionPipeline:
         random_state: int,
         device: str,
         source: str = "local-snapshot",
+        bundle_checkpoint: Path | None = None,
     ) -> None:
         self.estimator = estimator
         self.model_path = Path(model_path)
+        self.bundle_checkpoint = Path(bundle_checkpoint) if bundle_checkpoint is not None else self.model_path
         self.n_estimators = n_estimators
         self.random_state = random_state
         self.device = device
@@ -318,16 +393,15 @@ class TabICLRegressionPipeline:
         random_state: int = DEFAULT_RANDOM_STATE,
         device: str | None = None,
     ) -> TabICLRegressionPipeline:
-        """Stage what is missing (at ``MODEL_REVISION``), re-hash every manifest entry, then build the
-        estimator on the verified checkpoint. ``tabicl`` deserialises the checkpoint on the first ``fit``."""
+        """Return the estimator on the converted weights: a present file matching ``CONVERTED_MODEL_SHA256`` is used
+        as is; otherwise the source is staged (at ``MODEL_REVISION``), re-hashed against the manifest and converted
+        once. The network is built from the file's config on the first ``fit``; the pickle source is not read."""
         root = Path(weights_dir or DEFAULT_WEIGHTS_DIR)
-        stage_missing_files(root, allow_download=allow_download)
-        verify_snapshot(root)
+        model_path = ensure_converted(root, allow_download=allow_download)
         if device is None:
             import torch
 
             device = "cuda" if torch.cuda.is_available() else "cpu"
-        model_path = root / BASE_CHECKPOINT_NAME
         estimator = create_regressor(
             model_path=model_path,
             n_estimators=n_estimators,
@@ -341,6 +415,7 @@ class TabICLRegressionPipeline:
             n_estimators=n_estimators,
             random_state=random_state,
             device=device,
+            bundle_checkpoint=model_path,
         )
 
     def fit(self, X: Any, y: Any) -> TabICLRegressionPipeline:
@@ -761,8 +836,9 @@ def manifest_member_path(root: str | Path, value: Any, field: str) -> Path:
 
 
 def verify_artifact_bundle(root: str | Path, manifest: Mapping[str, Any]) -> dict[str, Path]:
-    """Check an extracted bundle's allowlist, sizes and digests against its manifest; return member paths."""
+    """Check an extracted bundle's layout, allowlist, sizes and digests against its manifest; return member paths."""
     root = Path(root)
+    check_bundle_layout(manifest)
     ckpt = manifest_member_path(root, manifest["checkpoint"], "checkpoint")
     context_path = manifest_member_path(root, manifest["trainingContext"], "trainingContext")
     payload_files = manifest.get("payloadFiles")

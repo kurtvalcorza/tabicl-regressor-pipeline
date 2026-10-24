@@ -177,11 +177,11 @@ def test_artifact_from_another_dataset_breaks_the_data_contract() -> None:
 
 def test_pretrained_artifact_must_carry_the_base_checkpoint(tmp_path) -> None:
     P = STAGES.package(_root(tmp_path))
-    manifest = {"baseCheckpoint": P.BASE_CHECKPOINT_NAME, "baseModelRevision": P.MODEL_REVISION, "baseModelSha256": P.BASE_MODEL_SHA256, "mode": "pretrained", "digests": {"checkpointSha256": P.BASE_MODEL_SHA256}}
+    manifest = {"artifactFormat": P.LEGACY_ARTIFACT_FORMAT, "baseCheckpoint": P.BASE_CHECKPOINT_NAME, "baseModelRevision": P.MODEL_REVISION, "baseModelSha256": P.BASE_MODEL_SHA256, "mode": "pretrained", "digests": {"checkpointSha256": P.BASE_MODEL_SHA256}}  # v1: the source pickle
     assert STAGES.check_bundle_identity(P, manifest)["mode"] == "pretrained"
     swapped = json.loads(json.dumps(manifest))
     swapped["digests"]["checkpointSha256"] = "f" * 64
-    with pytest.raises(RuntimeError, match=f"must be the pinned base checkpoint with SHA-256 {P.BASE_MODEL_SHA256}"):
+    with pytest.raises(RuntimeError, match=f"must be the pinned base with SHA-256 {P.BASE_MODEL_SHA256}"):
         STAGES.check_bundle_identity(P, swapped)
     other_base = json.loads(json.dumps(manifest))
     other_base["baseModelSha256"] = "e" * 64

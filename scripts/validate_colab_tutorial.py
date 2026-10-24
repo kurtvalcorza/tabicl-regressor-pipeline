@@ -31,7 +31,7 @@ BUILD_BACKEND_PIN = "setuptools==78.1.0"
 CHECKPOINT_NAME = "tabicl-regressor-v2-20260212.ckpt"
 MODEL_REVISION = "4dcd344ece2c00be9e831fdd35bed57b5ad83e19"
 CHECKPOINT_SHA256 = "0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a"
-ARTIFACT_FORMAT = "tabicl-dimer-regressor-v1"
+ARTIFACT_FORMAT = "tabicl-dimer-regressor-v2"
 
 
 def require(condition: bool, message: str) -> None:
@@ -161,7 +161,7 @@ require("MIN_SELECTION_HOLDOUT_ROWS = 50" in main_own, "selection evidence guard
 # Model / task provenance and semantics.
 for marker in (CHECKPOINT_NAME, MODEL_REVISION, CHECKPOINT_SHA256, ARTIFACT_FORMAT):
     require(marker in main_all, f"main missing provenance marker {marker!r}")
-for marker in ('"artifactFormat": P.ARTIFACT_FORMAT', "training_context.parquet", "checkpoints/best.ckpt", "artifact.json", "RUN_NEW_DATA_INFERENCE = False  # @param"):
+for marker in ('"artifactFormat": P.ARTIFACT_FORMAT', "training_context.parquet", "P.BUNDLE_CHECKPOINT", "artifact.json", "RUN_NEW_DATA_INFERENCE = False  # @param"):
     require(marker in main_own, f"main code missing {marker!r}")
 for marker in ("regression_metrics(", "training_mean_baseline(", "Regression target must vary", "trivial baseline"):
     require(marker in main_all, f"regression requirement missing {marker!r}")
