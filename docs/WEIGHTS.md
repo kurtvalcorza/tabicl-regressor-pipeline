@@ -6,6 +6,7 @@
 | Checkpoint | `tabicl-regressor-v2-20260212.ckpt` (114,324,594 bytes) |
 | Immutable revision | `4dcd344ece2c00be9e831fdd35bed57b5ad83e19` |
 | SHA-256 | `0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a` |
+| Served file | `tabicl-regressor-v2-20260212.safetensors` (114,223,620 bytes), SHA-256 `ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe` (`CONVERTED_MODEL_SHA256`), produced locally by `convert_checkpoint` |
 | License | BSD-3-Clause (upstream `tabicl` and the checkpoint) |
 | Package constants | `MODEL_ID`, `MODEL_REVISION`, `MODEL_LICENSE`, `MODEL_KEY = "tabicl-regressor-v2"` in `src/tabicl_regressor_pipeline/api.py` (aliased by the published `BASE_MODEL_REPO`, `BASE_MODEL_REVISION`, `BASE_CHECKPOINT_NAME`, `BASE_MODEL_SHA256`) |
 
@@ -25,6 +26,10 @@ running — nothing is downloaded when every manifest entry is present and verif
 python -c "from tabicl_regressor_pipeline import stage_missing_files, verify_snapshot; print(stage_missing_files(allow_download=True)); print(verify_snapshot()['files'])"
 ```
 
-The checkpoint is a Lightning/PyTorch `.ckpt` deserialised by `tabicl`; the digest check establishes byte integrity
+## Served weights: the safetensors conversion
+
+The checkpoint is a Lightning/PyTorch pickle. `ensure_converted` (called by `from_pretrained` and the tutorial's `weights` stage) reads it once, after the digest check, with `torch.load(map_location="cpu", weights_only=True)`, and `convert_checkpoint` writes its `state_dict` as contiguous CPU tensors and its `config` as sorted JSON in the string metadata (`tabicl_config`), with a canonical (sorted) header, to `tabicl-regressor-v2-20260212.safetensors` beside it. The conversion is byte-reproducible and must equal `CONVERTED_MODEL_SHA256`; a present file with that digest is used without reading the source. tabicl 2.1.1 loads `.ckpt` files itself in `TabICLRegressor._load_model`, so the package ships a small shim, `SafetensorsTabICLRegressor`, which overrides only that method: it builds `TabICL(**config)` from the file's metadata and calls `load_state_dict(strict=True)` (the fine-tuner's inner estimator uses the same shim). `tests/test_safetensors_serving.py` asserts the serving path never calls `torch.load` and that predictions equal the `.ckpt` load. Fine-tuned `best.ckpt` files and the serving bundle's `checkpoints/best.ckpt` keep the DIMER bundle contract and are still loaded by `tabicl` with `weights_only=True`; a `pretrained` bundle carries the verified source `.ckpt` byte for byte.
+
+The `.ckpt` digest check establishes byte integrity
 against this repository's pinned identity, not producer authenticity or model quality. The DIMER fine-tuner image bakes
 the same file at build time (see `DEPLOYMENT.md`).

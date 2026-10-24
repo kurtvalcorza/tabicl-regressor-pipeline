@@ -459,8 +459,11 @@ def validate_identity_consistency() -> None:
 # (dataset files, upstream files that are not staged, origin checkpoints, totals). Declared entries
 # that no document cites any more are rejected, so the allowlist cannot go stale.
 WEIGHT_DOCS = ("README.md", "MODEL_CARD.md", "docs/WEIGHTS.md")
-EXTERNAL_WEIGHT_BYTES: dict[int, str] = {}
+EXTERNAL_WEIGHT_BYTES: dict[int, str] = {
+    114223620: "the served safetensors conversion of the pinned checkpoint (produced locally by convert_checkpoint, not staged from the Hub)",
+}
 EXTERNAL_WEIGHT_DIGESTS: dict[str, str] = {
+    "ad4b0ec0dcb22627440770aac2d56755fae1dfc4d27c2d61e1628f34ee8525fe": "CONVERTED_MODEL_SHA256: the served safetensors conversion of the pinned checkpoint (produced locally, not staged from the Hub)",
     "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828": "the pinned sample artifact of the external-artifact section (release sample-artifact-diabetes-v1), not a weight file",
 }
 _DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{64}(?![0-9a-fA-F])")
