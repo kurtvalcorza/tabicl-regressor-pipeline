@@ -59,21 +59,23 @@ ZIP_DATE_TIME = (1980, 1, 1, 0, 0, 0)  # every export member gets this timestamp
 # (`outputs/tabiclv2_regressor_artifact.zip`) of a recorded earlier hosted run of this notebook's default path (SART8,
 # SART9). It is pinned by URL and SHA-256 and never replaced; a changed artifact gets a new tag and a new pin (SART7,
 # SART11). The export of the current run is never used as the external artifact (XAS2).
-SAMPLE_ARTIFACT_TAG = "sample-artifact-diabetes-v1"
-SAMPLE_ARTIFACT_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip"  # literal: validators allow only this exact URL
-SAMPLE_ARTIFACT_SHA256 = "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828"
+# The default is the bundle-format-v2 re-issue (checkpoints/best.safetensors, the converted base) of the recorded run's
+# v1 export: byte-identical training context and every manifest field unchanged except the checkpoint, plus a recorded
+# `reissue` block. It is not the export of a new hosted run.
+SAMPLE_ARTIFACT_TAG = "sample-artifact-diabetes-v2"
+SAMPLE_ARTIFACT_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v2/tabiclv2_regressor_artifact.zip"  # literal: validators allow only this exact URL
+SAMPLE_ARTIFACT_SHA256 = "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce"
 SAMPLE_ARTIFACT_PRODUCER = {
     "notebook": "tutorials/tabiclv2_regressor_colab.ipynb (default path: Sample: Diabetes)",
     "commit": "6b95e73f4f87456c825128418073d4f8293355f2",
     "run": "recorded hosted Colab T4 run; the release notes of the tag name the run record (SART8)",
     "release_tag": SAMPLE_ARTIFACT_TAG,
+    "reissue": "bundle format v2 re-issue of that run's v1 export (release sample-artifact-diabetes-v1) at code commit 86a767b; not a new run",
 }
-# The re-issued sample artifact (v2 bundle layout: checkpoints/best.safetensors, the converted base). Built from the v1 ZIP
-# with byte-identical training context and a recorded `reissue` block; staged for release, NOT yet published. Until
-# the tag is published, the default above stays on v1 (a deprecated v1 bundle, read with weights_only=True); switching is
-# replacing the three SAMPLE_ARTIFACT_* values above with these and the producer record.
-SAMPLE_ARTIFACT_V2_TAG = "sample-artifact-diabetes-v2"
-SAMPLE_ARTIFACT_V2_SHA256 = "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce"
+# The superseded v1 sample artifact (deprecated v1 layout, checkpoints/best.ckpt). It stays published and readable through
+# the legacy path (torch.load(weights_only=True), DeprecationWarning) when given as your own artifact; it is not the default.
+SAMPLE_ARTIFACT_V1_TAG = "sample-artifact-diabetes-v1"
+SAMPLE_ARTIFACT_V1_SHA256 = "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828"
 SAMPLE_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024  # a download larger than this is refused before it is hashed or opened
 EXTERNAL_DIR = "external_artifact"  # under outputs/: the section's predictions and provenance (XAS6)
 EXTERNAL_SAMPLE_ROWS = 8
