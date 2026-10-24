@@ -28,8 +28,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
 E2E = ROOT / "tutorials" / "tabiclv2_regressor_colab.ipynb"
-PINNED_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip"
-PINNED_SHA256 = "3cd5abc8d364398b6ff2b2716b48ca3d45781f6893accc097c93eec768dbe828"
+PINNED_URL = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline/releases/download/sample-artifact-diabetes-v2/tabiclv2_regressor_artifact.zip"
+PINNED_SHA256 = "693cc996249e3b8364745244d0bcfe8e7ab9cec1591e6f98f014ec54cd39dbce"
 SECTION_START = "## 10. Using an artifact made elsewhere"
 SECTION_END = "## 11. Optional activity"
 
@@ -86,7 +86,8 @@ def test_section_pins_the_release_asset_by_url_and_digest() -> None:
     assert STAGES.SAMPLE_ARTIFACT_URL == PINNED_URL
     assert STAGES.SAMPLE_ARTIFACT_SHA256 == PINNED_SHA256
     assert STAGES.SAMPLE_ARTIFACT_PRODUCER["commit"].startswith("6b95e73")
-    assert STAGES.SAMPLE_ARTIFACT_PRODUCER["release_tag"] == "sample-artifact-diabetes-v1"
+    assert STAGES.SAMPLE_ARTIFACT_PRODUCER["release_tag"] == "sample-artifact-diabetes-v2"
+    assert "sample-artifact-diabetes-v1" in STAGES.SAMPLE_ARTIFACT_PRODUCER["reissue"]
 
 
 def test_default_path_fetches_the_pin_and_never_this_runs_export(tmp_path, monkeypatch) -> None:
@@ -341,8 +342,8 @@ _REPO = "https://github.com/kurtvalcorza/tabicl-regressor-pipeline"
         f"{_REPO}/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip?raw=1",
         f"{_REPO}/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip#x",
         "https://github.com/kurtvalcorza/tabicl-classifier-pipeline/releases/download/sample-artifact-magic-v1/tabiclv2_classifier_artifact.zip",
-        f"{_REPO}/releases/download/sample-artifact-diabetes-v2/tabiclv2_regressor_artifact.zip",
-        f"{_REPO}/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip.sig",
+        f"{_REPO}/releases/download/sample-artifact-diabetes-v1/tabiclv2_regressor_artifact.zip",
+        f"{_REPO}/releases/download/sample-artifact-diabetes-v2/tabiclv2_regressor_artifact.zip.sig",
         f"{_REPO}.git",
         "https://GitHub.com/KurtValcorza/tabicl-regressor-pipeline/archive/refs/heads/main.zip",
     ],
