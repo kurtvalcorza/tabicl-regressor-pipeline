@@ -80,7 +80,10 @@ TEMPLATE = {
     "intro": (
         "TabICLv2 (Qu et al.) is an **in-context tabular foundation model**: a transformer pretrained on synthetic tables "
         "to predict a query row's target by reading labelled example rows — the **support rows** or **context** — alongside "
-        "it. `fit` registers the (encoded) support rows as context and every `predict` call feeds context plus query rows "
+        "it. **Overlap with the training data:** TabICLv2 was pretrained on synthetic tables only (model card), so the "
+        "diabetes rows cannot be in its pretraining data; whether its authors used this widely used scikit-learn table in "
+        "the benchmarks they evaluated or selected models on has not been checked, and if they did, the pretrained result "
+        "here could be slightly optimistic. `fit` registers the (encoded) support rows as context and every `predict` call feeds context plus query rows "
         "through the transformer and reads off a point prediction per query row; no gradient step happens there. "
         "`n_estimators=8` averages eight passes with different feature and row permutations. The DIMER pipeline's production "
         "workflow goes one step further: it **fine-tunes** the checkpoint by gradient descent on the support rows (AdamW, "
@@ -375,7 +378,9 @@ TEMPLATE = {
             "md": (
                 "## 7. Classical baselines, blending and the evaluation report · [Evaluation practice]\n\n"
                 "A standardised linear regression, LightGBM and a random forest are fitted on the exact same encoded support rows "
-                "and scored on the exact same holdout and test partitions, so the comparison is fair. Because MAE and R² on 88 rows "
+                "and scored on the exact same holdout and test partitions. None is tuned: LightGBM and the random forest use 100 trees "
+                "and otherwise library defaults, and the linear model has no regularisation, so the comparison is like-for-like on data, "
+                "not on tuning effort. Because MAE and R² on 88 rows "
                 "are noisy, the stage also reports the **paired standard error** of the MSE difference between TabICLv2 and the "
                 "linear model on the same rows: a difference smaller than about twice its standard error is within split noise. A "
                 "convex blend of TabICLv2 and LightGBM predictions is chosen by minimising holdout RMSE over a 101-point grid; it is "
@@ -395,8 +400,8 @@ TEMPLATE = {
         {
             "md": (
                 "**What to notice:** on the holdout the standardised linear regression reaches MAE 38.22 / R² 0.581, the random "
-                "forest 42.28 / 0.495 and LightGBM 44.94 / 0.426; on the independent test 46.72 / 0.439, 44.67 / 0.470 and "
-                "47.77 / 0.369. Read TabICLv2's line from your run beside them, then `tabicl_vs_linear_holdout` (the MSE difference "
+                "forest 42.28 / 0.495 and LightGBM 44.94 / 0.426; on the independent test the linear regression reaches 46.72 / "
+                "0.439 and LightGBM 47.77 / 0.369 (the hosted Colab T4 run of the previous blob (`426cd4d6`, commit `1f69142`, 2026-10-24; not re-run here) printed these, and the classical baselines are deterministic on this split; the stage prints no random-forest test line). Read TabICLv2's line from your run beside them, then `tabicl_vs_linear_holdout` (the MSE difference "
                 "and its paired standard error), the blend's weight and its holdout and test paired comparisons, and the report's "
                 "`verdict: sample-sanity`.\n\n"
                 "**Checkpoint:** the blend lowers holdout RMSE, but on the independent test its MSE difference against TabICLv2 is "
@@ -484,7 +489,8 @@ TEMPLATE = {
             "band; any deployment tolerance must be chosen on the caller's own labelled, domain-representative data. The "
             "evaluation report's `sample-sanity` verdict names what it is: one seeded random split of a public sample with no "
             "dispersion estimate — tutorial evidence that must not be generalised. On the diabetes sample a standardised linear "
-            "regression already reaches holdout MAE 38.22 / R² 0.581 and test MAE 46.72 / R² 0.439 on these partitions, and with "
+            "regression already reaches holdout MAE 38.22 / R² 0.581 and test MAE 46.72 / R² 0.439 on these partitions (printed by "
+            "the hosted Colab T4 run of blob `426cd4d6`, 2026-10-24; deterministic baselines), and with "
             "88 and 89 rows the paired standard error of an MSE difference is large, so a few points of MAE between models rank "
             "nothing. Read the numbers your run printed. The fine-tuning "
             "selection and the blend weight are chosen on the holdout and are therefore selection-biased; only the independent "
