@@ -58,7 +58,7 @@ executed notebook; the files stayed on the released VM). The run's own determini
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_exec.log` | `6ff20606618f0e9fb5855baefcc9e7da0de1b3ce147fd49d09ff87d722d60d42` | `4992c2a9dd9b413db67d55da3ebb9142c6b74a41195fdebc12f22bba548b228c` (2 replacements) |
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_suite.log` | `b32d73b34aec174b6a6c8d74305005ab23654328d8e353b8c912c5bfc84cdcc6` | `a276bc9b7b44abbcbd38b5293814305a0af70b68d9fadd41f6ff297e162464f9` (4 replacements) |
 
-**Hosted default-path run of blob `a84d74ba` (hosted Colab T4, 2026-10-25, `100088f`; the current blob).** The default path
+**Hosted default-path run of blob `a84d74ba` (hosted Colab T4, 2026-10-25, `100088f`; the previous blob).** The default path
 of `tutorials/tabiclv2_regressor_colab.ipynb` at `100088f` (blob `a84d74ba`, PR #37, tier C review fixes generated at `299b529`,
 executed as committed; the fetched source's Git blob id was re-checked), run by the Colab CLI (`colab exec -f`, a scripted run,
 not a browser Run all) on a fresh hosted T4 session, started 2026-10-25T07:36:04Z, wall 157.8 s, exit 0, input unchanged, 14/14
@@ -80,7 +80,7 @@ run's output. Local paths were replaced by `<local-run-dir>/` before the first c
 | `tabiclv2_regressor_colab_100088f_colab-cli-t4_exec.log` | `f9a95f9f01b8522fc514b9b1fde6f587db1c56468c202e8528c08c9d4cff6f3d` | `e4277eb621190bf62c7a13945b6d7bdea9ce2da925f12361eb7508cbe476a127` (2 replacements) |
 | `tabiclv2_regressor_colab_100088f_colab-cli-t4_run_summary.json` | `74f5bda9bdcca0c22ec9f71c79f30c115a2e2a0800f695f2e500d647bcbf7099` | unchanged (no local path) |
 
-**Optional-activity run of blob `a84d74ba` (hosted Colab T4, 2026-10-25, `100088f`, `RUN_ACTIVITY = True`; the current blob).**
+**Optional-activity run of blob `a84d74ba` (hosted Colab T4, 2026-10-25, `100088f`, `RUN_ACTIVITY = True`; the previous blob).**
 A run copy of committed blob `a84d74ba` with one override, `RUN_ACTIVITY = False` → `True` (run copy blob `05b84afb93cc`,
 SHA-256 `60ac8f09db569bbb6edb1b8123eddc6da0fdf7ad8bf38642d00f374757c6edf6`; it differs from the committed blob only in that
 assignment literal, and is committed beside the evidence as `…_activity_run_copy.ipynb`), run by the Colab CLI
@@ -516,6 +516,8 @@ given beside it.
 - **v2 tag (2026-10-24):** the default pin is now `sample-artifact-diabetes-v2` (`693cc996…`). That release is not immutable either (`.immutable` returns `false`), so the same deviation applies to it and integrity rests on the same pinned-digest check; the v1 tag stays published unchanged.
 
 ## Current status
+
+**Current status (2026-10-29): Candidate, hosted runs pending.** The current notebook blob is `5e7d4c4e` (regenerated from `46101cf`: a cancelled or empty upload is now refused with one `Refused: (no file): …` line and Run all stops at that cell, DAT20). It has no hosted run yet; hosted runs of its default path and of a scripted BYOD refusal are pending (REL14), and the runs of earlier blobs are history for it. The records of the previous blob `a84d74ba` below are history for it.
 
 **Pending (tier C review fixes, 2026-10-25):** `tutorials/tabiclv2_regressor_colab.ipynb` blob `a84d74ba7ea4870f792a1b83b6e8f73158c94a3f`, generated at `299b529` (T98-1, T98-2, T98-4, T98-5). It changes markdown, the use notice, `metadata.dimer` and the `NOTEBOOK_SOURCE` record only. Status **Candidate**. Its hosted default-path run and optional-activity run (`RUN_ACTIVITY = True` run copy) are recorded: Colab CLI `colab exec -f` scripted executions (not a browser Run all) on fresh Colab T4s at PR #37 head `100088f`, 2026-10-25, both PASS, 14/14 code cells, 0 errors, input unchanged (evidence in `execution-evidence/2026-10-25-100088f/` and `execution-evidence/2026-10-25-100088f-activity/`); the metrics equal the `426cd4d6` runs. These runs cover the default path and the activity. Remaining gates: REL12 (a hosted BYOD run with one accepted and one refused input) and REL2 (a browser run of the interactive journeys). The runs of `426cd4d6` and earlier blobs are history (REL14).
 
