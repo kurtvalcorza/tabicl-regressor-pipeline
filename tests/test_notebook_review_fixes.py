@@ -99,7 +99,7 @@ def _no_colab(monkeypatch):
 
 def _kernel(tmp_path: Path) -> tuple[dict, list]:
     calls: list = []
-    ns = {"ROOT": tmp_path / "run", "Path": Path, "shutil": shutil, "run_stage": lambda stage, **o: calls.append((stage, o))}
+    ns = {"ROOT": tmp_path / "run", "Path": Path, "shutil": shutil, "run_stage": lambda stage, **o: calls.append((stage, o)), "Refused": type("Refused", (Exception,), {})}
     return ns, calls
 
 
@@ -369,7 +369,7 @@ def test_m2_presplit_byod_by_path_without_colab(tmp_path, monkeypatch) -> None:
     single = _set(_set(cell, "USE_BYOD", True), "DATA_SOURCE", "Upload CSV")
     with _colab([{}]) as files:
         ns, calls = _kernel(tmp_path)
-        with pytest.raises(RuntimeError, match="cancelled or empty"):
+        with pytest.raises(ns["Refused"], match=r"^\(no file\): the upload was cancelled or empty"):  # DAT20: a refusal, not a RuntimeError
             exec(compile(single, "<s4>", "exec"), ns)
         assert files.calls == 1 and calls == []
     ns, calls = _kernel(tmp_path)
