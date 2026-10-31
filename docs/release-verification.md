@@ -58,6 +58,51 @@ executed notebook; the files stayed on the released VM). The run's own determini
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_exec.log` | `6ff20606618f0e9fb5855baefcc9e7da0de1b3ce147fd49d09ff87d722d60d42` | `4992c2a9dd9b413db67d55da3ebb9142c6b74a41195fdebc12f22bba548b228c` (2 replacements) |
 | `tabiclv2_regressor_colab_1e1a1ab_colab-cli-t4_suite.log` | `b32d73b34aec174b6a6c8d74305005ab23654328d8e353b8c912c5bfc84cdcc6` | `a276bc9b7b44abbcbd38b5293814305a0af70b68d9fadd41f6ff297e162464f9` (4 replacements) |
 
+### Hosted Colab T4 runs of blob `5e7d4c4e` (2026-10-29)
+
+These runs executed the PR head `25a787458745ed45acbc1027d381dace13717940`, notebook `tutorials/tabiclv2_regressor_colab.ipynb` blob `5e7d4c4eabe910d1f2c8d95ed7691afd91356745`, fetched at the 40-character SHA and Git-blob verified, with the Colab CLI (`colab exec -f`) on a fresh Colab Tesla T4 session (not a browser `Run all`). Each `run_summary.json` records `verdict` `PASS`, `exec_exit_code` 0, `input_unchanged` true and `stop_verified` true (the VM was released), and the SHA-256 of each executed notebook equals the summary's `executed_sha256`.
+
+**Default path (2026-10-29 17:03:20 UTC start).** Default settings, no overrides; session `suite-tabicl-25a7874-1cb9`; wall 160.4 s (`wall_s`); `code_cells` 14, `executed_cells` 14, 0 errors. Retained evidence: [`docs/execution-evidence/2026-10-29-25a7874/`](execution-evidence/2026-10-29-25a7874/).
+
+Printed by the default run (verbatim lines from the executed outputs):
+
+```text
+{'verified_files': 1, 'revision': '4dcd344ece2c00be9e831fdd35bed57b5ad83e19', 'sha256': ['0db9cb538f114e79026bf08f45f41ad8dd7ad2de2aaca9a5ca8cd3bd9748ae7a']}
+training-mean baseline on the holdout {'mae': 67.5162, 'mse': 5800.5533, 'rmse': 76.1614, 'r2': -0.0062}
+pretrained holdout {'mae': 38.8274, 'mse': 2408.1409, 'rmse': 49.0728, 'r2': 0.5823, 'pearsonr': 0.766}
+pretrained independent test {'mae': 44.7756, 'mse': 2971.2319, 'rmse': 54.509, 'r2': 0.4863, 'pearsonr': 0.7185}
+tabicl_pretrained                mae=38.83 rmse=49.07 r2=0.582
+lightgbm                         mae=44.94 rmse=57.55 r2=0.426
+random_forest                    mae=42.28 rmse=53.97 r2=0.495
+standardised_linear_regression   mae=38.22 rmse=49.15 r2=0.581
+PASS: bundle extracted safely, digests verified, regressor rebuilt from the bundle alone; predictions equivalent (rtol=1e-05, atol=1e-07).
+```
+
+**DAT20 refusal record (2026-10-29, blob `5e7d4c4e`).** Overrides, set by `--set` on a copy of the blob: `DATA_SOURCE` `'Sample: Diabetes'` → `'Upload CSV'` and `USE_BYOD` `False` → `True` and `BYOD_CSV_PATH` `''` → `'/content/sample_data/california_housing_test.csv'` (the run copy differs from the blob in exactly those 3 source lines). The suite cut the run copy right after the refusing cell `tabiclv2_regressor-14`, dropping 29 cells (9 of them code cells), which reproduces `Run all` stopping at the first error; the cut copy is `run_copy.ipynb`, SHA-256 `0f7802b4605698b142534f79d6f3a28a92fab5d6e82f77cf41bed04e77632a07` (Git blob `317fb216`), equal to the summary's `run_copy_sha256`. The cut copy's earlier code cells completed without an error output; the refusing cell's only error output has `ename` `Refused` and no traceback, and its output holds exactly one `Refused:` line:
+
+```text
+Refused: california_housing_test.csv: the target column 'target' is not in the header ['longitude', 'latitude', 'housing_median_age', 'total_rooms', 'total_bedrooms', 'population', 'households', 'median_income', 'median_house_value']. Set TARGET_COLUMN to the name of your label column. Fix the file (or the Section 4 fields) and run the Section 4 cell again.
+```
+
+This run says nothing about the 29 cut cells, which did not run in it. Session `suite-tabicl-25a7874-1cb9`, wall 94.0 s. Retained evidence: [`docs/execution-evidence/2026-10-29-25a7874-refusal/`](execution-evidence/2026-10-29-25a7874-refusal/).
+
+**Local-path redaction.** Local paths were replaced byte-wise by `<local-run-dir>` (and the Colab CLI install path by `<colab-cli-tool-dir>/`) before the first commit; each executed notebook and run copy was checked against its `run_summary.json` before any edit.
+
+| File (under `docs/execution-evidence/2026-10-29-25a7874/`) | Captured SHA-256 | Committed SHA-256 |
+|---|---|---|
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_default.ipynb` | `2860be561b8d3beed6a29c3ebb0102abf1724ce3b304a75f1b83adaceb5bcde2` | `2860be561b8d3beed6a29c3ebb0102abf1724ce3b304a75f1b83adaceb5bcde2` (unchanged, no local path) |
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_default_exec.log` | `d788e4defa2b044f48f4d47ebf7abc1fb2a52ae048b6db1f641f6f802276cfc0` | `3f986c3901c0502c4fd77c70aaef3462ab6e6d8147a5b9b6201b54f473c23cc9` (2 local-path replacements) |
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_default_run_summary.json` | `91dce40f90e1114026c321f46bf058dfcf4d79972cc00d63ccf3df316306b5ad` | `91dce40f90e1114026c321f46bf058dfcf4d79972cc00d63ccf3df316306b5ad` (unchanged, no local path) |
+
+| File (under `docs/execution-evidence/2026-10-29-25a7874-refusal/`) | Captured SHA-256 | Committed SHA-256 |
+|---|---|---|
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_refusal.ipynb` | `910ba9f7c485c54333178d158f0a6d21e5c5c62a75bbd729f2b4a15baac23a86` | `910ba9f7c485c54333178d158f0a6d21e5c5c62a75bbd729f2b4a15baac23a86` (unchanged, no local path) |
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_refusal_exec.log` | `a1a1e5b6f0772dabff2eff8473ef2f6cefbc2c00758e037b7e9e98548bb04d3d` | `c3f10c45ef036e59160b766de3220283af11153ba910381748b8242f1c6b12d3` (2 local-path replacements) |
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_refusal_run_summary.json` | `172775dfd18705951da165b5e706f25b5d7959964b7ec8f9b28de415777c103f` | `172775dfd18705951da165b5e706f25b5d7959964b7ec8f9b28de415777c103f` (unchanged, no local path) |
+| `tabiclv2_regressor_colab_25a7874_colab-cli-t4_refusal_run_copy.ipynb` | `0f7802b4605698b142534f79d6f3a28a92fab5d6e82f77cf41bed04e77632a07` | `0f7802b4605698b142534f79d6f3a28a92fab5d6e82f77cf41bed04e77632a07` (unchanged, no local path) |
+
+Not exercised by these runs: an accepted BYOD input (REL12), a browser `Run all` of the interactive journeys (REL2), and every other open gate named in this file; these runs close none of them.
+
 **Hosted default-path run of blob `a84d74ba` (hosted Colab T4, 2026-10-25, `100088f`; the previous blob).** The default path
 of `tutorials/tabiclv2_regressor_colab.ipynb` at `100088f` (blob `a84d74ba`, PR #37, tier C review fixes generated at `299b529`,
 executed as committed; the fetched source's Git blob id was re-checked), run by the Colab CLI (`colab exec -f`, a scripted run,
@@ -517,7 +562,7 @@ given beside it.
 
 ## Current status
 
-**Current status (2026-10-29): Candidate, hosted runs pending.** The current notebook blob is `5e7d4c4e` (regenerated from `46101cf`: a cancelled or empty upload is now refused with one `Refused: (no file): …` line and Run all stops at that cell, DAT20). It has no hosted run yet; hosted runs of its default path and of a scripted BYOD refusal are pending (REL14), and the runs of earlier blobs are history for it. The records of the previous blob `a84d74ba` below are history for it.
+**Current status (2026-10-29): Candidate.** The current notebook blob is `5e7d4c4e` (regenerated from `46101cf`: a cancelled or empty upload is now refused with one `Refused: (no file): …` line and Run all stops at that cell, DAT20). For this blob, its default path (2026-10-29; 14 code cells, exit 0, 0 errors) and its scripted DAT20 refusal (2026-10-29; `DATA_SOURCE=Upload CSV;USE_BYOD=True;BYOD_CSV_PATH=/content/sample_data/california_housing_test.csv`: exactly one `Refused:` line at cell `tabiclv2_regressor-14`, no traceback, earlier cells clean, VM released) both passed on a hosted Colab Tesla T4 (Colab CLI `colab exec -f`, not a browser `Run all`); its optional-activity run (`RUN_ACTIVITY = True`) is not recorded for this blob, and the runs of earlier blobs are history for it (REL14). The records of the previous blob `a84d74ba` below are history for it.
 
 **Pending (tier C review fixes, 2026-10-25):** `tutorials/tabiclv2_regressor_colab.ipynb` blob `a84d74ba7ea4870f792a1b83b6e8f73158c94a3f`, generated at `299b529` (T98-1, T98-2, T98-4, T98-5). It changes markdown, the use notice, `metadata.dimer` and the `NOTEBOOK_SOURCE` record only. Status **Candidate**. Its hosted default-path run and optional-activity run (`RUN_ACTIVITY = True` run copy) are recorded: Colab CLI `colab exec -f` scripted executions (not a browser Run all) on fresh Colab T4s at PR #37 head `100088f`, 2026-10-25, both PASS, 14/14 code cells, 0 errors, input unchanged (evidence in `execution-evidence/2026-10-25-100088f/` and `execution-evidence/2026-10-25-100088f-activity/`); the metrics equal the `426cd4d6` runs. These runs cover the default path and the activity. Remaining gates: REL12 (a hosted BYOD run with one accepted and one refused input) and REL2 (a browser run of the interactive journeys). The runs of `426cd4d6` and earlier blobs are history (REL14).
 
